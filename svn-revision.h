@@ -1,0 +1,1 @@
+std::string SubversionRevisionString = "https://svn.tribler.org/libswift/trunk@29182";
