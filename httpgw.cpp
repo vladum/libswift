@@ -945,7 +945,7 @@ void HttpGwNewRequestCallback (struct evhttp_request *evreq, void *arg) {
     if (td == -1) {
         // LIVE
         if (durstr != "-1") {
-            td = swift::Open(filename,swarm_id,Address(),false,true,false,activate,chunksize);
+            td = swift::Open(filename,swarm_id,Address(),false,true,false,false,activate,chunksize);
         }
         else {
             td = swift::LiveOpen(filename,swarm_id,Address(),false,chunksize);

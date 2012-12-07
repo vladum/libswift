@@ -717,10 +717,11 @@ int CmdGwHandleCommand(evutil_socket_t cmdsock, char *copyline)
         // New START request
         //fprintf(stderr,"cmd: START: new request %i\n",cmd_gw_reqs_count+1);
 
-        // Format: START url destdir\r\n
+        // Format: START url destdir [bulkbool]\r\n
         // Arno, 2012-04-13: See if URL followed by storagepath for seeding
         std::string pstr = paramstr;
         std::string url="",storagepath="";
+        bool uncheckedbulk=false;
         int sidx = pstr.find(" ");
         if (sidx == std::string::npos)
         {
@@ -730,7 +731,17 @@ int CmdGwHandleCommand(evutil_socket_t cmdsock, char *copyline)
         else
         {
             url = pstr.substr(0,sidx);
-            storagepath = pstr.substr(sidx+1);
+            int s2idx = pstr.find(" ",sidx+1);
+            if (s2idx == std::string::npos)
+        	storagepath = pstr.substr(sidx+1);
+            else
+            {
+		// new format with bulkbool
+		storagepath = pstr.substr(sidx+1,s2idx-(sidx+1));
+		std::string bulkstr = pstr.substr(s2idx+1,1);
+		if (bulkstr == "1")
+		    uncheckedbulk = true;
+            }
         }
 
         // Parse URL
@@ -758,7 +769,7 @@ int CmdGwHandleCommand(evutil_socket_t cmdsock, char *copyline)
         if (durationstr.length() > 0)
             std::istringstream(durationstr) >> duration;
 
-        dprintf("cmd: START: %s with tracker %s chunksize %i duration %d\n",hashstr.c_str(),trackerstr.c_str(),chunksize,duration);
+        dprintf("cmd: START: %s with tracker %s chunksize %i duration %d bulk %d\n",hashstr.c_str(),trackerstr.c_str(),chunksize,duration,uncheckedbulk);
 
         Address trackaddr;
         trackaddr = Address(trackerstr.c_str());
@@ -796,7 +807,7 @@ int CmdGwHandleCommand(evutil_socket_t cmdsock, char *copyline)
                 filename = hashstr;
 
             if (duration != -1)
-                td = swift::Open(filename,swarm_id,trackaddr,false,true,false,activate,chunksize);
+                td = swift::Open(filename,swarm_id,trackaddr,false,true,false,uncheckedbulk,activate,chunksize);
             else
                 td = swift::LiveOpen(filename,swarm_id,trackaddr,false,chunksize);
             if (td == -1) {
