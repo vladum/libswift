@@ -771,6 +771,8 @@ int CmdGwHandleCommand(evutil_socket_t cmdsock, char *copyline)
 
         dprintf("cmd: START: %s with tracker %s chunksize %i duration %d bulk %d\n",hashstr.c_str(),trackerstr.c_str(),chunksize,duration,uncheckedbulk);
 
+        fprintf(stderr,"cmd: START: %s with tracker %s chunksize %i duration %d bulk %d\n",hashstr.c_str(),trackerstr.c_str(),chunksize,duration,uncheckedbulk);
+
         Address trackaddr;
         trackaddr = Address(trackerstr.c_str());
         if (trackaddr==Address())
