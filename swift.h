@@ -403,8 +403,9 @@ namespace swift {
 	 *  @param check_netwvshash	whether to hash check chunk on receipt
 	 *  @param chunk_size	size of chunk to use
 	 *  @param zerostate	whether to serve the hashes + content directly from disk
+	 *  @param uncheckedbulk bulk transfer without content integrity protection
 	 */
-        FileTransfer(int td, std::string file_name, const Sha1Hash& root_hash=Sha1Hash::ZERO, bool force_check_diskvshash=true, bool check_netwvshash=true, uint32_t chunk_size=SWIFT_DEFAULT_CHUNK_SIZE, bool zerostate=false);
+        FileTransfer(int td, std::string file_name, const Sha1Hash& root_hash=Sha1Hash::ZERO, bool force_check_diskvshash=true, bool check_netwvshash=true, uint32_t chunk_size=SWIFT_DEFAULT_CHUNK_SIZE, bool zerostate=false, bool uncheckedbulk=false);
         /**    Close everything. */
         ~FileTransfer();
 
@@ -1017,7 +1018,7 @@ namespace swift {
         then on receipt. In this mode, checking disk contents against hashes
         no longer works on restarts, unless checkpoints are used.
         */
-    int     Open( std::string filename, const Sha1Hash& hash=Sha1Hash::ZERO,Address tracker=Address(), bool force_check_diskvshash=true, bool check_netwvshash=true, bool zerostate=false, bool activate=true, uint32_t chunk_size=SWIFT_DEFAULT_CHUNK_SIZE);
+    int     Open( std::string filename, const Sha1Hash& hash=Sha1Hash::ZERO,Address tracker=Address(), bool force_check_diskvshash=true, bool check_netwvshash=true, bool zerostate=false, bool activate=true, bool uncheckedbulk=false, uint32_t chunk_size=SWIFT_DEFAULT_CHUNK_SIZE);
     /** Get the root hash for the transmission. */
     const Sha1Hash& SwarmID (int file) ;
     /** Close a file and a transmission, remove state or content if desired. */

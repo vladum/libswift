@@ -20,7 +20,7 @@ using namespace swift;
 
 // FIXME: separate Bootstrap() and Download(), then Size(), Progress(), SeqProgress()
 
-FileTransfer::FileTransfer(int td, std::string filename, const Sha1Hash& root_hash, bool force_check_diskvshash, bool check_netwvshash, uint32_t chunk_size, bool zerostate) :
+FileTransfer::FileTransfer(int td, std::string filename, const Sha1Hash& root_hash, bool force_check_diskvshash, bool check_netwvshash, uint32_t chunk_size, bool zerostate, bool uncheckedbulk) :
     ContentTransfer(FILE_TRANSFER), availability_(NULL), zerostate_(zerostate)
 {
     td_ = td;
@@ -48,25 +48,35 @@ FileTransfer::FileTransfer(int td, std::string filename, const Sha1Hash& root_ha
     binmap_filename.assign(filename);
     binmap_filename.append(".mbinmap");
 
-    if (!zerostate_)
+    if (!uncheckedbulk)
     {
-        hashtree_ = (HashTree *)new MmapHashTree(storage_,root_hash,chunk_size,hash_filename,force_check_diskvshash,check_netwvshash,binmap_filename);
-        if (ENABLE_VOD_PIECEPICKER) {
-            // Ric: init availability
-            availability_ = new Availability();
-            // Ric: TODO assign picker based on input params...
-            picker_ = new VodPiecePicker(this);
+	if (!zerostate_)
+	{
+	    hashtree_ = (HashTree *)new MmapHashTree(storage_,root_hash,chunk_size,hash_filename,force_check_diskvshash,check_netwvshash,binmap_filename);
+	    if (ENABLE_VOD_PIECEPICKER) {
+		// Ric: init availability
+		availability_ = new Availability();
+		// Ric: TODO assign picker based on input params...
+		picker_ = new VodPiecePicker(this);
+	    }
+	    else
+		picker_ = new SeqPiecePicker(this);
+	    picker_->Randomize(rand()&63);
 	}
 	else
-	    picker_ = new SeqPiecePicker(this);
-	picker_->Randomize(rand()&63);
+	{
+	    // ZEROHASH
+	    hashtree_ = (HashTree *)new ZeroHashTree(storage_,root_hash,chunk_size,hash_filename,binmap_filename);
+        }
     }
     else
     {
-	// ZEROHASH
-	hashtree_ = (HashTree *)new ZeroHashTree(storage_,root_hash,chunk_size,hash_filename,binmap_filename);
+	// BULK
+	hashtree_ = (HashTree *)new BulkHashTree(storage_,root_hash,chunk_size);
+        // Point-to-point sequential download
+        picker_ = new SeqPiecePicker(this);
+	picker_->Randomize(rand()&63);
     }
-
     UpdateOperational();
 }
 

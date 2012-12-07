@@ -68,13 +68,14 @@ void usage(void)
     fprintf(stderr,"  -2 urlfilename-in-hex, a win32 workaround for non UTF-16 popen\n");
     fprintf(stderr,"  -3 zerosdir-in-hex, a win32 workaround for non UTF-16 popen\n");
     fprintf(stderr,"  -T time-out in seconds for slow zero state connections\n");
+    fprintf(stderr,"  -b unchecked bulk transfer\n");
     fprintf(stderr, "%s\n", SubversionRevisionString.c_str() );
 
 }
 #define quit(...) {fprintf(stderr,__VA_ARGS__); exit(1); }
-int HandleSwiftFile(std::string filename, Sha1Hash root_hash, Address &tracker, std::string trackerargstr, bool printurl, bool livestream, std::string urlfilename, double *maxspeed);
-int OpenSwiftFile(std::string filename, const Sha1Hash& hash, Address tracker, bool force_check_diskvshash, uint32_t chunk_size, bool livestream, bool activate);
-int OpenSwiftDirectory(std::string dirname, Address tracker, bool force_check_diskvshash, uint32_t chunk_size, bool activate);
+int HandleSwiftFile(std::string filename, Sha1Hash root_hash, Address &tracker, std::string trackerargstr, bool printurl, bool livestream, std::string urlfilename, double *maxspeed, bool uncheckedbulk);
+int OpenSwiftFile(std::string filename, const Sha1Hash& hash, Address tracker, bool force_check_diskvshash, uint32_t chunk_size, bool livestream, bool activate, bool uncheckedbulk);
+int OpenSwiftDirectory(std::string dirname, Address tracker, bool force_check_diskvshash, uint32_t chunk_size, bool activate, bool uncheckedbulk);
 void HandleLiveSource(std::string livesource_input, std::string filename, Sha1Hash root_hash);
 
 void ReportCallback(int fd, short event, void *arg);
@@ -155,12 +156,13 @@ int utf8main (int argc, char** argv)
         {"live",no_argument, 0, 'k'}, // LIVE
         {"cmdgwint",required_argument, 0, 'C'}, // SWIFTPROC
         {"zerostimeout",required_argument, 0, 'T'},  // ZEROSTATE
+        {"bulk",no_argument, 0, 'b'},  // BULK
         {0, 0, 0, 0}
     };
 
     Sha1Hash root_hash=Sha1Hash::ZERO;
     std::string filename = "",destdir = "", trackerargstr= "", zerostatedir="", urlfilename="";
-    bool printurl=false, livestream=false;
+    bool printurl=false, livestream=false, uncheckedbulk=false;
     Address bindaddr;
     Address httpaddr;
     Address statsaddr;
@@ -173,7 +175,7 @@ int utf8main (int argc, char** argv)
     Channel::evbase = event_base_new();
 
     int c,n;
-    while ( -1 != (c = getopt_long (argc, argv, ":h:f:d:l:t:D:pg:s:c:o:u:y:z:wBNHmM:e:r:ji:kC:1:2:3:T:", long_options, 0)) ) {
+    while ( -1 != (c = getopt_long (argc, argv, ":h:f:d:l:t:D:pg:s:c:o:u:y:z:wBNHmM:e:r:ji:kC:1:2:3:T:b", long_options, 0)) ) {
         switch (c) {
             case 'h':
                 if (strlen(optarg)!=40)
@@ -314,6 +316,9 @@ int utf8main (int argc, char** argv)
             case '3': // ZEROSTATE // SWIFTPROCUNICODE
                 zerostatedir = hex2bin(strdup(optarg));
                 break;
+            case 'b': // BULK
+                uncheckedbulk = true;
+                break;
             case 'T': // ZEROSTATE
                 double t=0.0;
                 n = sscanf(optarg,"%lf",&t);
@@ -382,7 +387,7 @@ int utf8main (int argc, char** argv)
             if (filename != "" || root_hash != Sha1Hash::ZERO) {
 
                 // Single file
-                ret = HandleSwiftFile(filename,root_hash,tracker,trackerargstr,printurl,livestream,urlfilename,maxspeed);
+                ret = HandleSwiftFile(filename,root_hash,tracker,trackerargstr,printurl,livestream,urlfilename,maxspeed,uncheckedbulk);
             }
             else if (scan_dirname != "")
             {
@@ -395,7 +400,7 @@ int utf8main (int argc, char** argv)
         	// arrive). When started deactivated but no checkpoint or
         	// incomplete, then the swarm will be activated and hashchecked.
         	//
-                ret = OpenSwiftDirectory(scan_dirname,Address(),false,chunk_size,false); // activate = false
+                ret = OpenSwiftDirectory(scan_dirname,Address(),false,chunk_size,false,uncheckedbulk); // activate = false
             }
             else
                 ret = -1;
@@ -409,7 +414,7 @@ int utf8main (int argc, char** argv)
                 quit("Cannot generate multi-file spec")
             else
                 // Calc roothash
-                ret = HandleSwiftFile(filename,root_hash,tracker,trackerargstr,printurl,false,urlfilename,maxspeed);
+                ret = HandleSwiftFile(filename,root_hash,tracker,trackerargstr,printurl,false,urlfilename,maxspeed,uncheckedbulk);
         }
 
     // For testing
@@ -478,12 +483,12 @@ int utf8main (int argc, char** argv)
 }
 
 
-int HandleSwiftFile(std::string filename, Sha1Hash root_hash, Address &tracker, std::string trackerargstr, bool printurl, bool livestream, std::string urlfilename, double *maxspeed)
+int HandleSwiftFile(std::string filename, Sha1Hash root_hash, Address &tracker, std::string trackerargstr, bool printurl, bool livestream, std::string urlfilename, double *maxspeed, bool uncheckedbulk)
 {
     if (root_hash!=Sha1Hash::ZERO && filename == "")
         filename = strdup(root_hash.hex().c_str());
 
-    single_td = OpenSwiftFile(filename,root_hash,tracker,false,chunk_size,livestream,true); //activate always
+    single_td = OpenSwiftFile(filename,root_hash,tracker,false,chunk_size,livestream,true,uncheckedbulk); //activate always
     if (single_td < 0)
         quit("cannot open file %s",filename.c_str());
     if (printurl)
@@ -540,7 +545,7 @@ int HandleSwiftFile(std::string filename, Sha1Hash root_hash, Address &tracker, 
 }
 
 
-int OpenSwiftFile(std::string filename, const Sha1Hash& hash, Address tracker, bool force_check_diskvshash, uint32_t chunk_size, bool livestream, bool activate)
+int OpenSwiftFile(std::string filename, const Sha1Hash& hash, Address tracker, bool force_check_diskvshash, uint32_t chunk_size, bool livestream, bool activate, bool uncheckedbulk)
 {
     if (!quiet)
 	fprintf(stderr,"swift: parsedir: Opening %s\n", filename.c_str());
@@ -551,14 +556,14 @@ int OpenSwiftFile(std::string filename, const Sha1Hash& hash, Address tracker, b
     // Client mode: regular or live download
     int td = -1;
     if (!livestream)
-	td = swift::Open(filename,hash,tracker,force_check_diskvshash,true,false,activate,chunk_size);
+	td = swift::Open(filename,hash,tracker,force_check_diskvshash,true,false,uncheckedbulk,activate,chunk_size);
     else
 	td = swift::LiveOpen(filename,hash,Address(),false,chunk_size);
     return td;
 }
 
 
-int OpenSwiftDirectory(std::string dirname, Address tracker, bool force_check_diskvshash, uint32_t chunk_size, bool activate)
+int OpenSwiftDirectory(std::string dirname, Address tracker, bool force_check_diskvshash, uint32_t chunk_size, bool activate, bool uncheckedbulk)
 {
     DirEntry *de = opendir_utf8(dirname);
     if (de == NULL)
@@ -572,7 +577,7 @@ int OpenSwiftDirectory(std::string dirname, Address tracker, bool force_check_di
             std::string path = dirname;
             path.append(FILE_SEP);
             path.append(de->filename_);
-            int td = OpenSwiftFile(path,Sha1Hash::ZERO,tracker,force_check_diskvshash,chunk_size,false,activate);
+            int td = OpenSwiftFile(path,Sha1Hash::ZERO,tracker,force_check_diskvshash,chunk_size,false,activate,uncheckedbulk);
             if (td >= 0) // Support case where dir of content has not been pre-hashchecked and checkpointed
                 Checkpoint(td);
         }
@@ -824,7 +829,7 @@ void RescanDirCallback(int fd, short event, void *arg) {
     // by running swift separately and then copy content + *.m* to scanned dir,
     // such that a fast restore from checkpoint is done.
     //
-    OpenSwiftDirectory(scan_dirname,tracker,false,chunk_size,false); // activate = false
+    OpenSwiftDirectory(scan_dirname,tracker,false,chunk_size,false,false); // activate = false
 
     CleanSwiftDirectory(scan_dirname);
 

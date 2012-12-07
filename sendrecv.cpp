@@ -339,7 +339,7 @@ bin_t        Channel::AddData (struct evbuffer *evb) {
         return bin_t::NONE; // once in a while, empty data is sent just to check rtt FIXED
 
     //LIVE
-    if (transfer()->ttype() == FILE_TRANSFER) {
+    if (transfer()->ttype() == FILE_TRANSFER && !hashtree()->get_unchecked_bulk()) {
         if (ack_in_.is_empty() && hashtree()->size())
             AddPeakHashes(evb);
         //NETWVSHASH
@@ -524,6 +524,7 @@ void    Channel::Recv (struct evbuffer *evb) {
     if (DEBUGTRAFFIC)
         fprintf(stderr,"recv c%u: size " PRISIZET "\n", id(), evbuffer_get_length(evb));
 
+    bool gothave=false;
     while (evbuffer_get_length(evb)) {
         uint8_t type = evbuffer_remove_8(evb);
 
@@ -545,6 +546,7 @@ void    Channel::Recv (struct evbuffer *evb) {
                     OnHaveZeroState(evb);
                 else
                     OnHave(evb);
+                gothave = true;
                 break;
             case SWIFT_ACK:
                 OnAck(evb);
@@ -588,6 +590,15 @@ void    Channel::Recv (struct evbuffer *evb) {
         LiveTransfer *lt = (LiveTransfer *)transfer();
         if (!lt->am_source())
             ((LivePiecePicker *)lt->picker())->EndAddPeerPos(id() );
+    }
+    else {
+	// BULK FILETRANSFER
+	if (gothave && hashtree()->get_unchecked_bulk()) {
+	    // Assume all HAVEs are in 1 datagram, now signal end so
+	    // file can be allocated
+	    dprintf("%s #%u -have ALL to bulk\n",tintstr(),id_);
+	    hashtree()->OfferHash(bin_t::ALL,Sha1Hash::ZERO);
+	}
     }
 
     last_recv_time_ = NOW;
@@ -844,13 +855,15 @@ void Channel::OnHave (struct evbuffer *evb) {
     // PPPLUG
     if (ENABLE_VOD_PIECEPICKER && transfer()->ttype() == FILE_TRANSFER) {
         FileTransfer *ft = (FileTransfer *)transfer();
-        // Ric: check if we should set the size in the file transfer
-        if (ft->availability()->size() <= 0 && ft->hashtree()->size() > 0)
-        {
-            ft->availability()->setSize(hashtree()->size_in_chunks());
+        if (ft->availability() != NULL) {
+            // Ric: check if we should set the size in the file transfer
+            if (ft->availability()->size() <= 0 && ft->hashtree()->size() > 0)
+            {
+                ft->availability()->setSize(hashtree()->size_in_chunks());
+            }
+            // Ric: update the availability if needed
+            ft->availability()->set(id_, ack_in_, ackd_pos);
         }
-        // Ric: update the availability if needed
-        ft->availability()->set(id_, ack_in_, ackd_pos);
     }
 
     ack_in_.set(ackd_pos);
@@ -876,6 +889,11 @@ void Channel::OnHave (struct evbuffer *evb) {
 		dprintf("%s #%u have but no hints\n",tintstr(),id_);
 	    }
         }
+    }
+    else if (hashtree()->get_unchecked_bulk()) // BULK
+    {
+	dprintf("%s #%u -have to bulk%s\n",tintstr(),id_,ackd_pos.str(bin_name_buf));
+	hashtree()->OfferHash(ackd_pos,Sha1Hash::ZERO);
     }
 }
 

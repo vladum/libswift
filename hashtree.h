@@ -103,13 +103,11 @@ class HashTree : public Operational {
 
     //NETWVSHASH
     virtual bool get_check_netwvshash() = 0;
-
+    virtual bool get_unchecked_bulk() = 0;
 
     // for transfertest.cpp
     virtual Storage *       get_storage() = 0;
     virtual void            set_size(uint64_t size) = 0;
-
-    virtual int TESTGetFD() = 0;
 
     virtual ~HashTree() {};
 };
@@ -203,8 +201,7 @@ public:
 
     //NETWVSHASH
     bool get_check_netwvshash() { return check_netwvshash_; }
-
-    int TESTGetFD() { return hash_fd_; }
+    bool get_unchecked_bulk() {return false; }
 };
 
 
@@ -275,10 +272,75 @@ public:
 
     //NETWVSHASH
     bool get_check_netwvshash() { return true; }
-
-    int TESTGetFD() { return hash_fd_; }
+    bool get_unchecked_bulk() { return false; }
 };
 
+
+
+/** This class implements a dummy HashTree interface for unprotected content */
+class BulkHashTree : public HashTree {
+    /** Merkle hash tree: root */
+    Sha1Hash        root_hash_;
+    /** Base size, as derived from the hashes. */
+    uint64_t        size_;
+    uint64_t        sizec_;
+    /**    Part of the tree currently checked. */
+    uint64_t        complete_;
+    uint64_t        completec_;
+    /**    Binmap of own chunk availability */
+    binmap_t        ack_out_;
+
+    // CHUNKSIZE
+    /** Arno: configurable fixed chunk size in bytes */
+    uint32_t        chunk_size_;
+
+    //MULTIFILE
+    Storage *       storage_;
+
+    // BULK
+    bool	    file_size_set_;
+
+protected:
+
+    bool            SubmitIfPresent();
+    bool            OfferPeakHash (bin_t pos, const Sha1Hash& hash);
+
+public:
+
+    BulkHashTree (Storage *storage, const Sha1Hash& root=Sha1Hash::ZERO, uint32_t chunk_size=SWIFT_DEFAULT_CHUNK_SIZE);
+
+    // Arno, 2012-01-03: Hack to quickly learn root hash from a checkpoint
+    BulkHashTree (bool dummy, std::string binmap_filename);
+
+    bool            OfferHash (bin_t pos, const Sha1Hash& hash);
+    bool            OfferData (bin_t bin, const char* data, size_t length);
+    /** For live streaming. Not implemented yet. */
+    int             AppendData (char* data, int length) ;
+
+    int             peak_count () const { return 0; }
+    bin_t           peak (int i) const { return bin_t::NONE; }
+    const Sha1Hash& peak_hash (int i) const;
+    bin_t           peak_for (bin_t pos) const;
+    const Sha1Hash& hash (bin_t pos) const;
+    const Sha1Hash& root_hash () const { return root_hash_; }
+    uint64_t        size () const { return size_; }
+    uint64_t        size_in_chunks () const { return sizec_; }
+    uint64_t        complete () const { return complete_; }
+    uint64_t        chunks_complete () const { return completec_; }
+    uint64_t        seq_complete(int64_t offset); // SEEK
+    bool            is_complete () { return size_ && complete_==size_; }
+    binmap_t *      ack_out () { return &ack_out_; }
+    uint32_t        chunk_size() { return chunk_size_; } // CHUNKSIZE
+    ~BulkHashTree ();
+
+    // for transfertest.cpp
+    Storage *       get_storage() { return storage_; }
+    void            set_size(uint64_t size) { size_ = size; }
+
+    //NETWVSHASH
+    bool get_check_netwvshash() { return false; }
+    bool get_unchecked_bulk() { return true; };
+};
 
 
 
