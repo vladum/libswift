@@ -112,6 +112,9 @@ class TestTunnel(unittest.TestCase):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s.connect(("127.0.0.1", self.cmdport))
 
+        cmd = "TUNNELREG ffffffff\r\n";
+        self.s.send(cmd)
+
         print >>sys.stderr,"test: Send over TCP, receive on UDP"
         for i in range(0,NREPEATS):        
             self.randsize = random.randint(1,2048)

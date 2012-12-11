@@ -87,10 +87,14 @@ Address	       cmd_tunnel_dest_addr;
 uint32_t       cmd_tunnel_dest_chanid;
 evutil_socket_t cmd_tunnel_sock=INVALID_SOCKET;
 
+typedef std::vector<uint32_t>  chanids_t;
+chanids_t	cmd_tunnel_registered_chanids;
+
+
 // HTTP gateway address for PLAY cmd
 Address cmd_gw_httpaddr;
 
-bool cmd_gw_debug=false;
+bool cmd_gw_debug=true;
 
 tint cmd_gw_last_open=0;
 
@@ -239,6 +243,15 @@ void CmdGwGotPEERADDR(Sha1Hash &want_hash, Address &peer)
     swift::AddPeer(peer, want_hash);
 }
 
+void CmdGwGotTUNNELREG(uint32_t chanid)
+{
+    // All UDP datagrams with this prefix are now forwarded over CMD connection
+    // (minus) 4 byte chanid.
+    if (cmd_gw_debug)
+        fprintf(stderr,"cmdgw: TunnelReg %08x\n", chanid );
+
+    cmd_tunnel_registered_chanids.push_back(chanid);
+}
 
 
 void CmdGwSendINFOHashChecking(evutil_socket_t cmdsock, Sha1Hash swarm_id)
@@ -950,6 +963,7 @@ int CmdGwHandleCommand(evutil_socket_t cmdsock, char *copyline)
     }
     else if (!strcmp(method,"TUNNELSEND"))
     {
+	// TUNNELSEND ip:port/hex-channelid size\r\n
         token = strtok_r(paramstr,"/",&savetok); // dest addr
         if (token == NULL)
             return ERROR_MISS_ARG;
@@ -976,6 +990,17 @@ int CmdGwHandleCommand(evutil_socket_t cmdsock, char *copyline)
         if (cmd_gw_debug)
             fprintf(stderr,"cmdgw: Want tunnel %d bytes to %s\n", cmd_tunnel_expect, cmd_tunnel_dest_addr.str() );
     }
+    else if (!strcmp(method,"TUNNELREG"))
+    {
+        // TUNNELREG hex-channelid\r\n
+	uint32_t chanid;
+	char *chanstr = paramstr;
+        int n = sscanf(chanstr,"%08x",&chanid);
+        if (n != 1)
+            return ERROR_BAD_ARG;
+        CmdGwGotTUNNELREG(chanid);
+    }
+
     else if (!strcmp(method,"PEERADDR"))
     {
         // PEERADDR roothash addrstr\r\n
@@ -1086,12 +1111,26 @@ bool InstallCmdGateway (struct event_base *evbase,Address cmdaddr,Address httpad
 
 
 // SOCKTUNNEL
-void swift::CmdGwTunnelUDPDataCameIn(Address srcaddr, uint32_t srcchan, struct evbuffer* evb)
+bool swift::CmdGwTunnelUDPDataCameIn(Address srcaddr, uint32_t srcchan, struct evbuffer* evb)
 {
-    // Message received on UDP socket, forward over TCP conn.
+    // Message received on UDP socket, forward over TCP conn, if registered
 
     if (cmd_gw_debug)
         fprintf(stderr,"cmdgw: TunnelUDPData:DataCameIn %d bytes from %s/%08x\n", evbuffer_get_length(evb), srcaddr.str(), srcchan );
+
+    bool found=false;
+    chanids_t::iterator iter;
+    for (iter=cmd_tunnel_registered_chanids.begin(); iter != cmd_tunnel_registered_chanids.end(); iter++)
+    {
+	uint32_t regchanid = *iter;
+	if (srcchan == regchanid)
+	{
+	    found = true;
+	    break;
+	}
+    }
+    if (!found)
+	return false;
 
     /*
      *  Format:
@@ -1113,6 +1152,7 @@ void swift::CmdGwTunnelUDPDataCameIn(Address srcaddr, uint32_t srcchan, struct e
     send(cmd_tunnel_sock,(const char *)data,slen,0);
 
     evbuffer_drain(evb,slen);
+    return true;
 }
 
 
@@ -1126,9 +1166,7 @@ void swift::CmdGwTunnelSendUDP(struct evbuffer *evb)
 
     struct evbuffer *sendevbuf = evbuffer_new();
 
-    // Add channel id. Currently always CMDGW_TUNNEL_DEFAULT_CHANNEL_ID=0xffffffff
-    // but we may add a TUNNELSUBSCRIBE command later to allow the allocation
-    // of different channels for different TCP clients.
+    // Add channel id.
     int ret = evbuffer_add_32be(sendevbuf, cmd_tunnel_dest_chanid);
     if (ret < 0)
     {
