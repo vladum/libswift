@@ -157,6 +157,11 @@ void CmdGwCloseConnection(evutil_socket_t sock)
     swift::close_socket(sock);
 
     cmd_gw_conns_open--;
+
+    // Arno, 2012-10-11: New policy Immediate shutdown on connection close,
+    // see CmdGwUpdateDLStatesCallback()
+    fprintf(stderr,"cmd: Shutting down on CMD connection close\n");
+    event_base_loopexit(Channel::evbase, NULL);
 }
 
 
@@ -571,24 +576,6 @@ void CmdGwUpdateDLStatesCallback()
         cmd_gw_t* req = &cmd_requests[i];
         CmdGwUpdateDLStateCallback(req);
     }
-
-    // Arno, 2012-05-24: Autoclose if CMD *connection* not *re*established soon
-    if (cmd_gw_conns_open == 0)
-    {
-        if (cmd_gw_last_open > 0)
-        {
-            tint diff = NOW - cmd_gw_last_open;
-            //fprintf(stderr,"cmd: time since last conn diff %lld\n", diff );
-            if (diff > 10*TINT_SEC)
-            {
-                fprintf(stderr,"cmd: No CMD connection since X sec, shutting down\n");
-                event_base_loopexit(Channel::evbase, NULL);
-            }
-        }
-    }
-    else
-        cmd_gw_last_open = NOW;
-
 }
 
 
@@ -640,8 +627,8 @@ void CmdGwProcessData(evutil_socket_t cmdsock)
         // Got "TUNNELSEND addr size\r\n" command, now read
         // size bytes, i.e., cmd_tunnel_expect bytes.
 
-        if (cmd_gw_debug)
-            fprintf(stderr,"cmdgw: procTCPdata: tunnel state, got %d, want %d\n", evbuffer_get_length(cmd_evbuffer), cmd_tunnel_expect );
+        //if (cmd_gw_debug)
+        //   fprintf(stderr,"cmdgw: procTCPdata: tunnel state, got %d, want %d\n", evbuffer_get_length(cmd_evbuffer), cmd_tunnel_expect );
 
         if (evbuffer_get_length(cmd_evbuffer) >= cmd_tunnel_expect)
         {
