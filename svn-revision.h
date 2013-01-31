@@ -1,1 +1,1 @@
-std::string SubversionRevisionString = "https://svn.tribler.org/libswift/branches/arno/swift-droid-release-2.6mpegts@30336";
+std::string SubversionRevisionString = "https://svn.tribler.org/libswift/branches/swift-droid-release-2.7@30388";
