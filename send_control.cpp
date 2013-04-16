@@ -199,6 +199,7 @@ tint Channel::LedbatNextSendTime () {
         BackOffOnLosses(0.8);
     ack_rcvd_recent_ = 0;
     tint queueing_delay = owd_cur - owd_min;
+    // Ric: should be divided by the target again
     tint off_target = LEDBAT_TARGET - queueing_delay;
     cwnd_ += LEDBAT_GAIN * off_target / cwnd_;
     if (cwnd_<1) 

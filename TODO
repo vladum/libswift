@@ -1,5 +1,9 @@
     TRIAL TODO
 
+RIC:
+* check if we run into many fragmentated pkts by adding the timestamp to the data!
+
+
 STATE MACHINE
 * imposed HINTs are terribly broken, resent for the data in flight 
 * check ACK/HAVE redundancy

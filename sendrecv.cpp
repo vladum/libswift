@@ -33,7 +33,7 @@ struct event Channel::evrecv;
  * we send HINTs for 2 chunks at the moment. This constant can be used to
  * get greater granularity. Set to 0 for original behaviour.
  */
-#define HINT_GRANULARITY	16 // chunks
+#define HINT_GRANULARITY	0 // chunks
 
 /** Arno, 2012-03-16: Swift can now tunnel data from CMDGW over UDP to
  * CMDGW at another swift instance. This is the default channel ID on UDP
@@ -123,6 +123,7 @@ bin_t        Channel::DequeueHint (bool *retransmitptr) {
         bin_t my_pick = ImposeHint(); // FIXME move to the loop
         if (!my_pick.is_none()) {
             hint_in_.push_back(my_pick);
+            hint_in_size_+=my_pick.base_length();
             char bin_name_buf[32];
             dprintf("%s #%u *hint %s\n",tintstr(),id_,my_pick.str(bin_name_buf));
         }
@@ -141,6 +142,11 @@ bin_t        Channel::DequeueHint (bool *retransmitptr) {
         if (!ack_in_.is_filled(hint))
             send = hint;
     }
+
+    // Ric: remove from size!
+	if (!send.is_none()&&!*retransmitptr)
+		hint_in_size_ -= send.base_length();
+
     uint64_t mass = 0;
     // Arno, 2012-03-09: Is mucho expensive on busy server.
     //for(int i=0; i<hint_in_.size(); i++)
@@ -167,6 +173,8 @@ void    Channel::AddHandshake (struct evbuffer *evb) {
     else
     	encoded = EncodeID(id_);
     evbuffer_add_32be(evb, encoded);
+    // Ric: add timestamp for offset (time sync.)
+    evbuffer_add_64be(evb, NOW);
     dprintf("%s #%u +hs %x\n",tintstr(),id_,encoded);
     have_out_.clear();
 }
@@ -190,9 +198,10 @@ void    Channel::Send () {
 				/* Gertjan fix: 7aeea65f3efbb9013f601b22a57ee4a423f1a94d
 				"Only call Reschedule for 'reverse PEX' if the channel is in keep-alive mode"
 				 */
-				AddPexReq(evb);
+				//AddPexReq(evb);
+				AddCancel(evb);
 			}
-			AddPex(evb);
+			//AddPex(evb);
 			TimeoutDataOut();
 			data = AddData(evb);
     	} else {
@@ -203,7 +212,7 @@ void    Channel::Send () {
         AddHandshake(evb);
         AddHave(evb); // Arno, 2011-10-28: from AddHandShake. Why double?
         AddHave(evb);
-        AddAck(evb);
+        AddAck(evb);	// Ric: why sending Ack in Handshake?
     }
 
     lastsendwaskeepalive_ = (evbuffer_get_length(evb) == 4);
@@ -234,6 +243,8 @@ void    Channel::AddHint (struct evbuffer *evb) {
 
 	// RATELIMIT
 	// Policy is to not send hints when we are above speed limit
+	//fprintf(stderr,"AddHint: cur %f max %f\n", transfer().GetCurrentSpeed(DDIR_DOWNLOAD), transfer().GetMaxSpeed(DDIR_DOWNLOAD));
+
 	if (transfer().GetCurrentSpeed(DDIR_DOWNLOAD) > transfer().GetMaxSpeed(DDIR_DOWNLOAD)) {
 		if (DEBUGTRAFFIC)
 			fprintf(stderr,"hint: forbidden#");
@@ -246,8 +257,11 @@ void    Channel::AddHint (struct evbuffer *evb) {
 
     tint timed_out = NOW - plan_for*2;
     while ( !hint_out_.empty() && hint_out_.front().time < timed_out ) {
-        hint_out_size_ -= hint_out_.front().bin.base_length();
+    	bin_t hint = hint_out_.front().bin;
+        hint_out_size_ -= hint.base_length();
         hint_out_.pop_front();
+        // Ric: send Cancel msg
+        cancel_out_.push_back(hint);
     }
 
     int first_plan_pck = max ( (tint)1, plan_for / dip_avg_ );
@@ -310,12 +324,21 @@ void    Channel::AddHint (struct evbuffer *evb) {
 }
 
 
-bin_t        Channel::AddData (struct evbuffer *evb) {
-	// RATELIMIT
-	if (transfer().GetCurrentSpeed(DDIR_UPLOAD) > transfer().GetMaxSpeed(DDIR_UPLOAD)) {
-		transfer().OnSendNoData();
-		return bin_t::NONE;
+void    Channel::AddCancel (struct evbuffer *evb) {
+
+	char bin_name_buf[32];
+
+	while (SWIFT_MAX_NONDATA_DGRAM_SIZE-evbuffer_get_length(evb) >= 5 && !cancel_out_.empty()) {
+		bin_t cancel = cancel_out_.front();
+		cancel_out_.pop_front();
+		evbuffer_add_8(evb, SWIFT_CANCEL);
+		evbuffer_add_32be(evb, bin_toUInt32(cancel));
+		dprintf("%s #%u +cancel %s \n",
+			tintstr(),id_,cancel.str(bin_name_buf),data_in_.time);
 	}
+}
+
+bin_t        Channel::AddData (struct evbuffer *evb) {
 
     if (!hashtree()->size()) // know nothing
         return bin_t::NONE;
@@ -386,12 +409,16 @@ bin_t        Channel::AddData (struct evbuffer *evb) {
     }
 
     evbuffer_add_8(evb, SWIFT_DATA);
+
+    // Ric: add timestamp as for the LEDBAT draft specs
+    evbuffer_add_64be(evb, NOW);
+
     evbuffer_add_32be(evb, bin_toUInt32(tosend));
 
     struct evbuffer_iovec vec;
     if (evbuffer_reserve_space(evb, hashtree()->chunk_size(), &vec, 1) < 0) {
-	print_error("error on evbuffer_reserve_space");
-	return bin_t::NONE;
+		print_error("error on evbuffer_reserve_space");
+		return bin_t::NONE;
     }
     size_t r = transfer().GetStorage()->Read((char *)vec.iov_base,
 		     hashtree()->chunk_size(),tosend.base_offset()*hashtree()->chunk_size());
@@ -434,6 +461,7 @@ void    Channel::AddAck (struct evbuffer *evb) {
     // sometimes, we send a HAVE (e.g. in case the peer did repetitive send)
     evbuffer_add_8(evb, data_in_.time==TINT_NEVER?SWIFT_HAVE:SWIFT_ACK);
     evbuffer_add_32be(evb, bin_toUInt32(data_in_.bin));
+    // Ric: data_in_.time represents the calculated owd
     if (data_in_.time!=TINT_NEVER)
         evbuffer_add_64be(evb, data_in_.time);
 
@@ -443,8 +471,8 @@ void    Channel::AddAck (struct evbuffer *evb) {
 
     have_out_.set(data_in_.bin);
     char bin_name_buf[32];
-    dprintf("%s #%u +ack %s %s\n",
-        tintstr(),id_,data_in_.bin.str(bin_name_buf),tintstr(data_in_.time));
+    dprintf("%s #%u +ack %s owd: %i\n",
+        tintstr(),id_,data_in_.bin.str(bin_name_buf),data_in_.time);
     if (data_in_.bin.layer()>2)
         data_in_dbl_ = data_in_.bin;
 
@@ -520,6 +548,12 @@ void    Channel::Recv (struct evbuffer *evb) {
         rtt_avg_ = NOW - last_send_time_;
         dev_avg_ = rtt_avg_;
         dip_avg_ = rtt_avg_;
+        // Ric: update the RTT early when communicating with a seeder
+        last_rtt_update_ = last_send_time_ + rtt_avg_;
+        //if (time_offset_==0) {
+        //	time_offset_ =  tintabs(time_offset_) - rtt_avg_>>1;
+        //	dprintf("%s #%u time offset %lli\n",tintstr(),id_,time_offset_);
+        //}
         dprintf("%s #%u sendctrl rtt init %lli\n",tintstr(),id_,rtt_avg_);
     }
 
@@ -561,6 +595,9 @@ void    Channel::Recv (struct evbuffer *evb) {
             	break;
             case SWIFT_HINT:
             	OnHint(evb);
+            	break;
+            case SWIFT_CANCEL:
+            	OnCancel(evb);
             	break;
             case SWIFT_PEX_ADD:
             	if (!transfer().IsZeroState())
@@ -634,10 +671,22 @@ void    Channel::CleanHintOut (bin_t pos) {
         hi++;
     if (hi==hint_out_.size())
         return; // something not hinted or hinted in far past
+    // TODO Ric: remove only the received data from the list
+    // TODO maybe send a CANCEL msg?
     while (hi--) { // removing likely snubbed hints
-        hint_out_size_ -= hint_out_.front().bin.base_length();
+    	bin_t hint = hint_out_.front().bin;
+        hint_out_size_ -= hint.base_length();
         hint_out_.pop_front();
+        // Ric: send Cancel msgs
+        cancel_out_.push_back(hint);
     }
+
+    /* Ric: move it to the front
+    tintbin tmp = hint_out_[hi];
+    hint_out_.erase(hint_out_.begin() + hi);
+    hint_out_.push_front(tmp);
+    */
+
     while (hint_out_.front().bin!=pos) {
         tintbin f = hint_out_.front();
 
@@ -660,6 +709,7 @@ void    Channel::CleanHintOut (bin_t pos) {
 bin_t Channel::OnData (struct evbuffer *evb) {  // TODO: HAVE NONE for corrupted data
 
 	char bin_name_buf[32];
+    tint sender_time = evbuffer_remove_64be(evb); // FIXME 32
 	bin_t pos = bin_fromUInt32(evbuffer_remove_32be(evb));
 
     // Arno: Assuming DATA last message in datagram
@@ -681,7 +731,24 @@ bin_t Channel::OnData (struct evbuffer *evb) {  // TODO: HAVE NONE for corrupted
         return bin_t::NONE;
     }
     uint8_t *data = evbuffer_pullup(evb, length);
-    data_in_ = tintbin(NOW,bin_t::NONE);
+
+    // Ric: set data_in time to the calculated owd
+    tint owd = NOW-(sender_time-time_offset_);
+    if (owds_.size()>=10)		// TODO why 10?
+		owds_.pop_front();
+	owds_.push_back(owd);
+    // Ric: If we are communicating with a seeder, update the rtt value if older
+    //      than 1 sec. WE don't updated it for every data pkt as we do not know
+	//      when a request is actually processed by the sender.
+    //      TODO: make the update time dependent on the DL speed!
+    if (last_rtt_update_+(TINT_SEC<<2)<NOW || owds_.size() < 10) {
+    	UpdateRTT();
+    	dprintf("%s #%u sendctrl rtt %lli dev %lli dip %lli based on the last %i owd samples\n",
+    	                tintstr(),id_,rtt_avg_,dev_avg_, dip_avg_,owds_.size());
+    }
+
+	data_in_ = tintbin(owd,bin_t::NONE);
+
     if (!hashtree()->OfferData(pos, (char*)data, length)) {
     	evbuffer_drain(evb, length);
         char bin_name_buf[32];
@@ -726,9 +793,27 @@ void Channel::UpdateDIP(bin_t pos)
 }
 
 
+void Channel::UpdateRTT(tint rtt)
+{
+	// Ric: if we are communicating with a seeder, update the rtt based on
+	//      the last owd calculations.
+	if (!rtt) {
+		tint tmp = 0;
+		for (uint i=0; i < owds_.size(); i++)
+			tmp += owds_[i];
+		// Ric: assume rtt to be twice the owd and the processing time at the
+		//      sender comparable to the dip;
+		rtt = tmp*2/owds_.size() + dip_avg_;
+	}
+    rtt_avg_ = (rtt_avg_*7 + rtt) >> 3;
+    dev_avg_ = ( dev_avg_*3 + tintabs(rtt-rtt_avg_) ) >> 2;
+    last_rtt_update_ = NOW;
+}
+
+
 void    Channel::OnAck (struct evbuffer *evb) {
     bin_t ackd_pos = bin_fromUInt32(evbuffer_remove_32be(evb));
-    tint peer_time = evbuffer_remove_64be(evb); // FIXME 32
+    tint peer_owd_time = evbuffer_remove_64be(evb); // FIXME 32
     // FIXME FIXME: wrap around here
     if (ackd_pos.is_none())
         return; // likely, broken chunk/ insufficient hashes
@@ -751,25 +836,22 @@ void    Channel::OnAck (struct evbuffer *evb) {
     while (  ri<data_out_tmo_.size() && !ackd_pos.contains(data_out_tmo_[ri].bin) )
         ri++;
     char bin_name_buf[32];
-    dprintf("%s #%u %cack %s %lli\n",tintstr(),id_,
-            di==data_out_.size()?'?':'-',ackd_pos.str(bin_name_buf),peer_time);
+    dprintf("%s #%u %cack %s\n",tintstr(),id_,
+            di==data_out_.size()?'?':'-',ackd_pos.str(bin_name_buf));
     if (di!=data_out_.size() && ri==data_out_tmo_.size()) { // not a retransmit
-            // round trip time calculations
-        tint rtt = NOW-data_out_[di].time;
-        rtt_avg_ = (rtt_avg_*7 + rtt) >> 3;
-        dev_avg_ = ( dev_avg_*3 + tintabs(rtt-rtt_avg_) ) >> 2;
+        // round trip time calculations
+        UpdateRTT(NOW-data_out_[di].time);
         assert(data_out_[di].time!=TINT_NEVER);
-            // one-way delay calculations
-        tint owd = peer_time - data_out_[di].time;
+        // one-way delay calculations
         owd_cur_bin_ = 0;//(owd_cur_bin_+1) & 3;
-        owd_current_[owd_cur_bin_] = owd;
+        owd_current_[owd_cur_bin_] = peer_owd_time;
         if ( owd_min_bin_start_+TINT_SEC*30 < NOW ) {
             owd_min_bin_start_ = NOW;
             owd_min_bin_ = (owd_min_bin_+1) & 3;
             owd_min_bins_[owd_min_bin_] = TINT_NEVER;
         }
-        if (owd_min_bins_[owd_min_bin_]>owd)
-            owd_min_bins_[owd_min_bin_] = owd;
+        if (owd_min_bins_[owd_min_bin_]>peer_owd_time)
+            owd_min_bins_[owd_min_bin_] = peer_owd_time;
         dprintf("%s #%u sendctrl rtt %lli dev %lli based on %s\n",
                 tintstr(),id_,rtt_avg_,dev_avg_,data_out_[di].bin.str(bin_name_buf));
         ack_rcvd_recent_++;
@@ -843,15 +925,21 @@ void    Channel::OnHint (struct evbuffer *evb) {
     bin_t hint = bin_fromUInt32(evbuffer_remove_32be(evb));
     // FIXME: wake up here
     hint_in_.push_back(hint);
+    // Ric: update the hint_size
+    hint_in_size_ += hint.base_length();
     char bin_name_buf[32];
-    dprintf("%s #%u -hint %s\n",tintstr(),id_,hint.str(bin_name_buf));
+    dprintf("%s #%u -hint %s [%i]\n",tintstr(),id_,hint.str(bin_name_buf), hint_in_size_);
 }
 
 
 void Channel::OnHandshake (struct evbuffer *evb) {
 
 	uint32_t pcid = evbuffer_remove_32be(evb);
+	uint64_t remote_time = evbuffer_remove_64be(evb);
     dprintf("%s #%u -hs %x\n",tintstr(),id_,pcid);
+
+    //if (DEBUGTRAFFIC)
+    //	fprintf(stderr, "recv timestamp %s\toffset%lu%", tintstr(remote_time), time_offset_);
 
     if (is_established() && pcid == 0) {
     	// Arno: received explicit close
@@ -874,10 +962,41 @@ void Channel::OnHandshake (struct evbuffer *evb) {
     }
 
     // FUTURE: channel forking
-    if (is_established())
+    if (is_established()) {
         dprintf("%s #%u established %s\n", tintstr(), id_, peer().str());
+		// Ric: init the time offset
+		if (rtt_avg_!=TINT_SEC && time_offset_==0) {
+			time_offset_ = remote_time-NOW;
+			//time_offset_ = time_offset_>0 ? time_offset_ - (rtt_avg_>>1) : time_offset_ + (rtt_avg_>>1);
+			time_offset_ += rtt_avg_>>1;
+			dprintf("%s #%u time offset %lli\n",tintstr(),id_,time_offset_);
+		}
+    }
 }
 
+void    Channel::OnCancel (struct evbuffer *evb) {
+
+	char bin_name_buf[32];
+    bin_t cancel = bin_fromUInt32(evbuffer_remove_32be(evb));
+
+    int hi = 0;
+    while (hi<hint_in_.size() && !cancel.contains(hint_in_[hi].bin))
+        hi++;
+
+    // nothing to cancel
+    if (hi==hint_in_.size())
+        return;
+
+    dprintf("%s #%u -cancel %s => removing: ",tintstr(),id_,cancel.str(bin_name_buf));
+    do {
+    	dprintf("%s ",hint_in_[hi].bin.str(bin_name_buf));
+    	hint_in_size_ -= hint_in_[hi].bin.base_length();
+    	hint_in_.erase(hint_in_.begin()+hi);
+    	hi++;
+    } while (cancel.contains(hint_in_[hi].bin));
+    dprintf("\n");
+
+}
 
 void Channel::OnPexAdd (struct evbuffer *evb) {
     uint32_t ipv4 = evbuffer_remove_32be(evb);
@@ -1173,15 +1292,62 @@ void Channel::Close () {
 
 void Channel::Reschedule () {
 
+	tint pktsRate = 0;
+
+	// RATELIMIT
+	if (transfer().GetCurrentSpeed(DDIR_UPLOAD) > transfer().GetMaxSpeed(DDIR_UPLOAD) && hint_in_size_ > 1) {
+
+		int peers = 0;
+		tint rate = transfer().GetMaxSpeed(DDIR_UPLOAD) / hashtree()->chunk_size();
+		uint64_t tot_req = 0;
+		std::vector<Channel *>::iterator iter;
+		for (iter = channels.begin()+1; iter != channels.end(); iter++)
+		{
+			Channel *c = *iter;
+			if (c != NULL)
+			{
+				// Ric: check why? :-|
+				if (c->send_control_==LEDBAT_CONTROL) {
+					tot_req += c->hint_in_size_;
+					peers++;
+					dprintf("%s #%u tot req from channel %i\t%i-%lu\n",tintstr(),id_, c->id_,tot_req,c->hint_in_size_);
+				}
+			}
+		}
+
+		float ratio = tot_req ? float(hint_in_size_)/float(tot_req) : 1.0;
+		dprintf("\t\t\t\t ratio: %f", ratio);
+		// deviate the ratio to an equal share
+
+		if (ratio!=1.0) {
+			// Ric: TODO work after fixing ledbat!
+			ratio += (1.0 / (peers) - ratio) * 1.0/(peers);
+			//ratio = 1.0/peers;
+		}
+		dprintf("=>%f\n",ratio);
+
+		pktsRate = TINT_SEC/(rate*ratio);
+		//transfer().OnSendNoData();
+
+	}
+
 	// Arno: CAREFUL: direct send depends on diff between next_send_time_ and
 	// NOW to be 0, so any calls to Time in between may put things off. Sigh.
 	Time();
     next_send_time_ = NextSendTime();
+
     if (next_send_time_!=TINT_NEVER) {
 
     	assert(next_send_time_<NOW+TINT_MIN);
         tint duein = next_send_time_-NOW;
-        if (duein <= 0 && !direct_sending_) {
+
+    	if (pktsRate) {
+    		duein = max(duein, last_send_time_+pktsRate-NOW);
+    		dprintf("%s #%u Upload Limitation\tspeed:%02lf limit:%lf   duein:%02li hint_in:%i\n",tintstr(),id_,transfer().GetCurrentSpeed(DDIR_UPLOAD), transfer().GetMaxSpeed(DDIR_UPLOAD), duein,hint_in_size_);
+    	}
+
+
+        if (duein <= 0 && !direct_sending_ && next_send_time_<NOW) {
         	// Arno, 2011-10-18: libevent's timer implementation appears to be
         	// really slow, i.e., timers set for 100 usec from now get called
         	// at least two times later :-( Hence, for sends after receives
@@ -1195,7 +1361,7 @@ void Channel::Reschedule () {
         	if (evsend_ptr_ != NULL) {
         		struct timeval duetv = *tint2tv(duein);
         		evtimer_add(evsend_ptr_,&duetv);
-        		dprintf("%s #%u requeue for %s in %lli\n",tintstr(),id_,tintstr(next_send_time_), duein);
+        		dprintf("%s #%u requeue for %s in %lli\n",tintstr(),id_,tintstr(next_send_time_+duein), duein);
         	}
         	else
         		dprintf("%s #%u cannot requeue for %s, closed\n",tintstr(),id_,tintstr(next_send_time_));

@@ -242,10 +242,11 @@ namespace swift {
         SWIFT_PEX_REQ = 6,
         SWIFT_SIGNED_HASH = 7,
         SWIFT_HINT = 8,
-        SWIFT_MSGTYPE_RCVD = 9,
-        SWIFT_RANDOMIZE = 10, //FRAGRAND
-        SWIFT_VERSION = 11, // Arno, 2011-10-19: TODO to match RFC-rev-03
-        SWIFT_MESSAGE_COUNT = 12
+        SWIFT_CANCEL = 9,	// Ric: added cancel hint req.
+        SWIFT_MSGTYPE_RCVD = 10,
+        SWIFT_RANDOMIZE = 11, //FRAGRAND
+        SWIFT_VERSION = 12, // Arno, 2011-10-19: TODO to match RFC-rev-03
+        SWIFT_MESSAGE_COUNT = 13
     } messageid_t;
 
     typedef enum {
@@ -539,6 +540,7 @@ namespace swift {
         void        OnHave (struct evbuffer *evb);
         bin_t       OnData (struct evbuffer *evb);
         void        OnHint (struct evbuffer *evb);
+        void        OnCancel (struct evbuffer *evb);
         void        OnHash (struct evbuffer *evb);
         void        OnPexAdd (struct evbuffer *evb);
         void        OnHandshake (struct evbuffer *evb);
@@ -548,6 +550,7 @@ namespace swift {
         void        AddAck (struct evbuffer *evb);
         void        AddHave (struct evbuffer *evb);
         void        AddHint (struct evbuffer *evb);
+        void        AddCancel (struct evbuffer *evb);
         void        AddUncleHashes (struct evbuffer *evb, bin_t pos);
         void        AddPeakHashes (struct evbuffer *evb);
         void        AddPex (struct evbuffer *evb);
@@ -655,9 +658,13 @@ namespace swift {
         binmap_t    have_out_;
         /**    Transmit schedule: in most cases filled with the peer's hints */
         tbqueue     hint_in_;
+        uint64_t	hint_in_size_;		// Ric: added for WFQ
         /** Hints sent (to detect and reschedule ignored hints). */
         tbqueue     hint_out_;
         uint64_t    hint_out_size_;
+        /** Ric: hints that are removed from the hint_out_ queue and need to be canceled */
+        std::deque<bin_t> cancel_out_;
+		uint64_t    cancel_out_size_;
         /** Types of messages the peer accepts. */
         uint64_t    cap_in_;
         /** PEX progress */
@@ -669,13 +676,16 @@ namespace swift {
         int         useless_pex_count_;
         /** Smoothed averages for RTT, RTT deviation and data interarrival periods. */
         tint        rtt_avg_, dev_avg_, dip_avg_;
+        tint		last_rtt_update_;
         tint        last_send_time_;
         tint        last_recv_time_;
         tint        last_data_out_time_;
         tint        last_data_in_time_;
         tint        last_loss_time_;
         tint        next_send_time_;
-        tint		open_time_;
+		tint		open_time_;
+        std::deque<tint> owds_;				// Ric: fixed size queue of the last calculated OWDs
+        tint		time_offset_;			// Ric: time offset. Needed for sync
         /** Congestion window; TODO: int, bytes. */
         float       cwnd_;
         int         cwnd_count1_;
@@ -726,7 +736,7 @@ namespace swift {
         void        CleanHintOut(bin_t pos);
         void        Reschedule();
         void 		UpdateDIP(bin_t pos); // RETRANSMIT
-
+        void		UpdateRTT(tint rtt=0);
 
         static PeerSelector* peer_selector;
 
