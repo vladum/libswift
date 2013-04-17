@@ -482,6 +482,22 @@ namespace swift {
     };
 
 
+    /** A ReciprocityPolicy implements algorithms defined by the PPSPP standard,
+        section 9.2. This is the base class of such policies implemented as
+        external modules (see ./ext directory). A sender using a policy will
+        typically want to adjust the scheduled time of the next chunk
+        transmission after it has been computed by the fair/normal scheduling
+        mechanism (see Channel::Reschedule). A ReciprocityPolicy tracks
+        connected peers since the policy is usually based on these. */
+    class ReciprocityPolicy {
+    public:
+        virtual void AddPeer (const Address& addr, const Sha1Hash& root) = 0;
+        virtual void DelPeer (const Address& addr, const Sha1Hash& root) = 0;
+        virtual float AdjustNextSendTime(const Address& addr, const Sha1Hash& root, float normal_time) = 0;
+        virtual ~ReciprocityPolicy() {};
+    };
+
+
     /**    swift channel's "control block"; channels loosely correspond to TCP
 	   connections or FTP sessions; one channel is created for one file
 	   being transferred between two peers. As we don't need buffers and
