@@ -41,6 +41,13 @@ FILE* Channel::debug_file = NULL;
 //PeerSelector* Channel::peer_selector = new SimpleSelector();
 tint Channel::MIN_PEX_REQUEST_INTERVAL = TINT_SEC;
 
+#ifdef BC3RECIPROCITY
+#include "ext/bc3_reciprocity.cpp"
+ReciprocityPolicy* Channel::reciprocity_policy = new Bc3ReciprocityPolicy();
+#else
+ReciprocityPolicy* Channel::reciprocity_policy = new ReciprocityPolicy();
+#endif
+
 
 /*
  * Instance methods
@@ -75,6 +82,10 @@ Channel::Channel    (FileTransfer* transfer, int socket, Address peer_addr) :
     this->id_ = channels.size();
     channels.push_back(this);
     transfer_->hs_in_.push_back(bin_t(id_));
+
+    // RECIPROCITY
+    reciprocity_policy->AddPeer(peer_, transfer_->root_hash());
+
     for(int i=0; i<4; i++) {
         owd_min_bins_[i] = TINT_NEVER;
         owd_current_[i] = TINT_NEVER;
@@ -95,6 +106,17 @@ Channel::~Channel () {
 	dprintf("%s #%u dealloc channel\n",tintstr(),id_);
     channels[id_] = NULL;
     ClearEvents();
+
+    //RECIPROCITY
+    if (transfer_ != NULL) {
+        reciprocity_policy->DelPeer(peer_, transfer_->root_hash());
+    } else {
+        // TODO(vladum): Will this ever happen?
+        // We no longer have the transfer_ object, thus the roothash. What to
+        // do, what to do? Remove from all swarms (for global recip. doesn't
+        // matter)?
+        reciprocity_policy->DelPeer(peer_, Sha1Hash::ZERO);
+    }
 
     // RATELIMIT
     if (transfer_ != NULL)

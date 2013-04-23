@@ -491,9 +491,13 @@ namespace swift {
         connected peers since the policy is usually based on these. */
     class ReciprocityPolicy {
     public:
-        virtual void AddPeer (const Address& addr, const Sha1Hash& root) = 0;
-        virtual void DelPeer (const Address& addr, const Sha1Hash& root) = 0;
-        virtual float AdjustNextSendTime(const Address& addr, const Sha1Hash& root, float normal_time) = 0;
+        virtual void AddPeer (const Address& addr, const Sha1Hash& root) {};
+        virtual void DelPeer (const Address& addr, const Sha1Hash& root) {};
+        virtual float AdjustNextSendTime(const Address& addr,
+                                         const Sha1Hash& root,
+                                         float normal_time) {
+            return normal_time;
+        };
         virtual ~ReciprocityPolicy() {};
     };
 
@@ -755,6 +759,8 @@ namespace swift {
         void		UpdateRTT(tint rtt=0);
 
         static PeerSelector* peer_selector;
+
+        static ReciprocityPolicy* reciprocity_policy;
 
         static tint     last_tick;
         //static tbheap   send_queue;
