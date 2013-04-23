@@ -488,7 +488,8 @@ namespace swift {
         typically want to adjust the scheduled time of the next chunk
         transmission after it has been computed by the fair/normal scheduling
         mechanism (see Channel::Reschedule). A ReciprocityPolicy tracks
-        connected peers since the policy is usually based on these. */
+        connected peers since the policy is usually based on information
+        gathered about these. */
     class ReciprocityPolicy {
     public:
         virtual void AddPeer (const Address& addr, const Sha1Hash& root) {};
@@ -498,6 +499,7 @@ namespace swift {
                                          float normal_time) {
             return normal_time;
         };
+        virtual void ExternalCmd(char *message) {};
         virtual ~ReciprocityPolicy() {};
     };
 
@@ -616,6 +618,9 @@ namespace swift {
         	return tmo < 30*TINT_SEC ? tmo : 30*TINT_SEC;
         }
         uint32_t    id () const { return id_; }
+        static ReciprocityPolicy* reciprocity_policy() {
+            return reciprocity_policy_;
+        }
 
         // MORESTATS
         uint64_t raw_bytes_up() { return raw_bytes_up_; }
@@ -760,7 +765,7 @@ namespace swift {
 
         static PeerSelector* peer_selector;
 
-        static ReciprocityPolicy* reciprocity_policy;
+        static ReciprocityPolicy* reciprocity_policy_;
 
         static tint     last_tick;
         //static tbheap   send_queue;

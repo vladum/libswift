@@ -294,6 +294,12 @@ void CmdGwGotSETMOREINFO(Sha1Hash &want_hash, bool enable)
 	req->moreinfo = enable;
 }
 
+void CmdGwGotRECIPROCITY(char *message)
+{
+    // Pass message to the reciprocity policy object.
+    Channel::reciprocity_policy()->ExternalCmd(message);
+}
+
 void CmdGwGotPEERADDR(Sha1Hash &want_hash, Address &peer)
 {
 	cmd_gw_t* req = CmdGwFindRequestByRootHash(want_hash);
@@ -1015,6 +1021,14 @@ int CmdGwHandleCommand(evutil_socket_t cmdsock, char *copyline)
         bool enable = (bool)!strcmp(token,"1");
     	Sha1Hash root_hash = Sha1Hash(true,hashstr);
     	CmdGwGotSETMOREINFO(root_hash,enable);
+    }
+    else if (!strcmp(method,"RECIPROCITY"))
+    {
+        // RECIPROCITY message\r\n
+        token = strtok_r(paramstr," ",&savetok); // hash
+        if (token == NULL)
+            return ERROR_MISS_ARG;
+        CmdGwGotRECIPROCITY(token);
     }
     else if (!strcmp(method,"SHUTDOWN"))
     {
