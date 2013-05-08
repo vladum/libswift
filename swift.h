@@ -83,7 +83,7 @@ namespace swift {
 #define bytes2layer(bn,cs)  (int)log2(  ((double)bn)/((double)cs) )
 
 // Arno, 2011-12-22: Enable Riccardo's VodPiecePicker
-#define ENABLE_VOD_PIECEPICKER		1
+#define ENABLE_VOD_PIECEPICKER		0
 
 #define SWIFT_URI_SCHEME			"tswift"
 

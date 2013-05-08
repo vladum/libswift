@@ -11,7 +11,7 @@
 
 using namespace swift;
 
-bool recip_extcmd_debug = false;
+bool recip_extcmd_debug = true;
 
 /** Receives peer weights from the BarterCast3 Dispersy community and
  *  prioritizes peers with higher weights. The normal next send time is being
@@ -122,7 +122,7 @@ private:
 
     void AddGlobalPeer(const Address& addr) {
         // TODO(vladum): Implement.
-        dprintf("%s adding peer %s to global bc3 reciprocity\n",
+        fprintf(stderr, "%s adding peer %s to global bc3 reciprocity\n",
                 tintstr(), addr.str());
         return;
     }

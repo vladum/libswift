@@ -286,6 +286,7 @@ int utf8main (int argc, char** argv)
     if (bindaddr!=Address()) { // seeding
         if (Listen(bindaddr)<=0)
             quit("cant listen to %s\n",bindaddr.str())
+        fprintf(stderr, "seeeeeeeeeeding\n");
     } else if (tracker!=Address() || httpgw_enabled || cmdgw_enabled) { // leeching
     	evutil_socket_t sock = INVALID_SOCKET;
         for (int i=0; i<=10; i++) {
@@ -305,8 +306,11 @@ int utf8main (int argc, char** argv)
 
     if (httpgw_enabled)
         InstallHTTPGateway(Channel::evbase,httpaddr,chunk_size,maxspeed,metadir);
-    if (cmdgw_enabled)
+    if (cmdgw_enabled) {
+        fprintf(stderr, "installing gateway...\n");
 		InstallCmdGateway(Channel::evbase,cmdaddr,httpaddr,metadir);
+		fprintf(stderr, "gateway installed...\n");
+    }
 
     // TRIALM36: Allow browser to retrieve stats via AJAX and as HTML page
     if (statsaddr != Address())
