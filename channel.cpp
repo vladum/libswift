@@ -58,17 +58,17 @@ Channel::Channel    (FileTransfer* transfer, int socket, Address peer_addr) :
 	peer_(peer_addr), socket_(socket==INVALID_SOCKET?default_socket():socket), // FIXME
     transfer_(transfer), peer_channel_id_(0), own_id_mentioned_(false),
     data_in_(TINT_NEVER,bin_t::NONE), data_in_dbl_(bin_t::NONE),
-    data_out_cap_(bin_t::ALL),hint_out_size_(0),hint_in_size_(0),
+    data_out_cap_(bin_t::ALL),hint_out_size_(0),
     // Gertjan fix 996e21e8abfc7d88db3f3f8158f2a2c4fc8a8d3f
     // "Changed PEX rate limiting to per channel limiting"
+    pex_requested_(false), pex_request_outstanding_(false), // Ric: init var that wasn't initialiazed
     last_pex_request_time_(0), next_pex_request_time_(0),
-    pex_request_outstanding_(false), pex_requested_(false),  // Ric: init var that wasn't initialiazed
     useless_pex_count_(0),
     rtt_avg_(TINT_SEC), dev_avg_(0), dip_avg_(TINT_SEC),
     last_send_time_(0), last_recv_time_(0), last_data_out_time_(0), last_data_in_time_(0),
-    last_loss_time_(0), next_send_time_(0), open_time_(NOW), cwnd_(1),
-    cwnd_count1_(0), send_interval_(TINT_SEC),
-    send_control_(PING_PONG_CONTROL), sent_since_recv_(0), time_offset_(0),
+    last_loss_time_(0), next_send_time_(0), open_time_(NOW), time_offset_(0),
+    cwnd_(1), cwnd_count1_(0), send_interval_(TINT_SEC),
+    send_control_(PING_PONG_CONTROL), sent_since_recv_(0),
     lastrecvwaskeepalive_(false), lastsendwaskeepalive_(false), // Arno: nap bug fix
     ack_rcvd_recent_(0),
     ack_not_rcvd_recent_(0), owd_min_bin_(0), owd_min_bin_start_(NOW),

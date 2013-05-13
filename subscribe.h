@@ -49,6 +49,10 @@
 #ifndef SUBSCRIBE_H
 #define SUBSCRIBE_H
 
+#include "swift.h"
+
+using namespace swift;
+
 struct CloseEvent
 {
     Sha1Hash swarmid_;

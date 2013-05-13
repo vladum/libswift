@@ -694,9 +694,9 @@ namespace swift {
         uint64_t    cap_in_;
         /** PEX progress */
         bool        pex_requested_;
+        bool        pex_request_outstanding_;
         tint        last_pex_request_time_;
         tint        next_pex_request_time_;
-        bool        pex_request_outstanding_;
         tbqueue     reverse_pex_out_;		// Arno, 2011-10-03: should really be a queue of (tint,channel id(= uint32_t)) pairs.
         int         useless_pex_count_;
         /** Smoothed averages for RTT, RTT deviation and data interarrival periods. */

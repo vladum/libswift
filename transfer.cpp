@@ -32,9 +32,9 @@ swevent_list_t FileTransfer::subscribe_event_q;
 // FIXME: separate Bootstrap() and Download(), then Size(), Progress(), SeqProgress()
 
 FileTransfer::FileTransfer(std::string filename, const Sha1Hash& root_hash, std::string metadir, bool force_check_diskvshash, bool check_netwvshash, uint32_t chunk_size, bool zerostate) :
-	Operational(), fd_(files.size()+1), cb_installed(0), mychannels_(),
+	Operational(), cb_installed(0), mychannels_(),
     speedzerocount_(0), tracker_(), tracker_retry_interval_(TRACKER_RETRY_INTERVAL_START),
-    tracker_retry_time_(NOW), zerostate_(zerostate)
+    tracker_retry_time_(NOW), fd_(files.size()+1), zerostate_(zerostate)
 {
     if (files.size()<fd()+1)
         files.resize(fd()+1);
