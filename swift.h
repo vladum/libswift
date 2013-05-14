@@ -332,6 +332,7 @@ namespace swift {
 		double			GetMaxSpeed(data_direction_t ddir);
 		/** Arno: Set maximum speed for the given direction in bytes/s */
 		void			SetMaxSpeed(data_direction_t ddir, double m);
+		static void     SetGlobalMaxSpeed(data_direction_t ddir, double m);
 		/** Arno: Return the number of non-seeders current channeled with. */
 		uint32_t		GetNumLeechers();
 		/** Arno: Return the number of seeders current channeled with. */
@@ -407,6 +408,7 @@ namespace swift {
         channels_t			mychannels_; // Arno, 2012-01-31: May be duplicate of hs_in_
         MovingAverageSpeed	cur_speed_[2];
         double				max_speed_[2];
+        static double       global_max_speed_[2];
         int					speedzerocount_;
 
         // SAFECLOSE

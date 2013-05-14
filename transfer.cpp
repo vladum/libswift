@@ -21,6 +21,7 @@ using namespace swift;
 std::vector<FileTransfer*> FileTransfer::files(20);
 bool FileTransfer::subscribe_channel_close = false;
 swevent_list_t FileTransfer::subscribe_event_q;
+double FileTransfer::global_max_speed_[] = {DBL_MAX, DBL_MAX};
 
 #define BINHASHSIZE (sizeof(bin64_t)+sizeof(Sha1Hash))
 
@@ -97,8 +98,8 @@ FileTransfer::FileTransfer(std::string filename, const Sha1Hash& root_hash, std:
     init_time_ = Channel::Time();
     cur_speed_[DDIR_UPLOAD] = MovingAverageSpeed();
     cur_speed_[DDIR_DOWNLOAD] = MovingAverageSpeed();
-    max_speed_[DDIR_UPLOAD] = DBL_MAX;
-    max_speed_[DDIR_DOWNLOAD] = DBL_MAX;
+    max_speed_[DDIR_UPLOAD] = global_max_speed_[DDIR_UPLOAD];
+    max_speed_[DDIR_DOWNLOAD] = global_max_speed_[DDIR_DOWNLOAD];
 
     // Per-swarm stats
     raw_bytes_[DDIR_UPLOAD] = 0;
@@ -390,6 +391,11 @@ void		FileTransfer::SetMaxSpeed(data_direction_t ddir, double m)
 	max_speed_[ddir] = m;
 	// Arno, 2012-01-04: Be optimistic, forget history.
 	cur_speed_[ddir].Reset();
+}
+
+void        FileTransfer::SetGlobalMaxSpeed(data_direction_t ddir, double m)
+{
+    global_max_speed_[ddir] = m;
 }
 
 

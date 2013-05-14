@@ -269,6 +269,12 @@ void CmdGwGotMAXSPEED(Sha1Hash &want_hash, data_direction_t ddir, double speed)
 	// Set maximum speed on the specified download
 	//fprintf(stderr,"cmd: GotMAXSPEED: %s %d %lf\n",want_hash.hex().c_str(),ddir,speed);
 
+    if (want_hash == Sha1Hash::ZERO) {
+        // Set global for all future transfers.
+        FileTransfer::SetGlobalMaxSpeed(ddir, speed);
+        return;
+    }
+
 	cmd_gw_t* req = CmdGwFindRequestByRootHash(want_hash);
 	if (req == NULL)
     	return;
