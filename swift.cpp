@@ -18,8 +18,8 @@ using namespace swift;
 
 
 // Local constants
-#define RESCAN_DIR_INTERVAL	30 // seconds
-#define REPORT_INTERVAL		 4 // seconds
+#define RESCAN_DIR_INTERVAL	10 // seconds
+#define REPORT_INTERVAL		 1 // seconds
 
 // Local prototypes
 #define quit(...) {fprintf(stderr,__VA_ARGS__); exit(1); }
@@ -591,6 +591,15 @@ void ReportCallback(int fd, short event, void *arg) {
 	// Called every second to print/calc some stats
 	// Arno, 2012-05-24: Why-oh-why, update NOW
 	Channel::Time();
+
+    if (report_progress && single_fd  < 0) {
+        // Only for seeder.
+        fprintf(stderr,
+            "\e[31mSEED %lli dgram %lli raw bytes up %lli bytes up, " \
+            "%lli dgram %lli raw bytes down %lli bytes down\e[0m\n",
+            Channel::global_dgrams_up, Channel::global_raw_bytes_up, Channel::global_bytes_up,
+            Channel::global_dgrams_down, Channel::global_raw_bytes_down, Channel::global_bytes_down );
+    }
 
 	if (single_fd  >= 0)
 	{

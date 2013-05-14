@@ -99,7 +99,7 @@ bin_t        Channel::DequeueHint (bool *retransmitptr) {
     // Arno, 2012-01-23: Extra protection against channel loss, don't send DATA
     if (last_recv_time_ < NOW-(3*TINT_SEC))
     {
-    	dprintf("%s #%u dequeued bad time %llu\n",tintstr(),id_, last_recv_time_ );
+    	dprintf("%s #%u dequeued bad time %li\n",tintstr(),id_, last_recv_time_ );
     	return bin_t::NONE;
     }
 
@@ -152,7 +152,7 @@ bin_t        Channel::DequeueHint (bool *retransmitptr) {
     //for(int i=0; i<hint_in_.size(); i++)
     //    mass += hint_in_[i].bin.base_length();
     char bin_name_buf[32];
-    dprintf("%s #%u dequeued %s [%lli]\n",tintstr(),id_,send.str(bin_name_buf),mass);
+    dprintf("%s #%u dequeued %s [%lu]\n",tintstr(),id_,send.str(bin_name_buf),mass);
     return send;
 }
 
@@ -310,8 +310,8 @@ void    Channel::AddHint (struct evbuffer *evb) {
             evbuffer_add_8(evb, SWIFT_HINT);
             evbuffer_add_32be(evb, bin_toUInt32(hint));
             char bin_name_buf[32];
-            dprintf("%s #%u +hint %s [%lli]\n",tintstr(),id_,hint.str(bin_name_buf),hint_out_size_);
-            dprintf("%s #%u +hint base %s width %d\n",tintstr(),id_,hint.base_left().str(bin_name_buf), hint.base_length() );
+            dprintf("%s #%u +hint %s [%lu]\n",tintstr(),id_,hint.str(bin_name_buf),hint_out_size_);
+            dprintf("%s #%u +hint base %s width %llu\n",tintstr(),id_,hint.base_left().str(bin_name_buf), hint.base_length() );
             hint_out_.push_back(hint);
             hint_out_size_ += hint.base_length();
             //fprintf(stderr,"send c%d: HINTLEN %i\n", id(), hint.base_length());
@@ -333,7 +333,7 @@ void    Channel::AddCancel (struct evbuffer *evb) {
 		cancel_out_.pop_front();
 		evbuffer_add_8(evb, SWIFT_CANCEL);
 		evbuffer_add_32be(evb, bin_toUInt32(cancel));
-		dprintf("%s #%u +cancel %s \n",
+		dprintf("%s #%u +cancel %s %li\n",
 			tintstr(),id_,cancel.str(bin_name_buf),data_in_.time);
 	}
 }
@@ -471,7 +471,7 @@ void    Channel::AddAck (struct evbuffer *evb) {
 
     have_out_.set(data_in_.bin);
     char bin_name_buf[32];
-    dprintf("%s #%u +ack %s owd: %i\n",
+    dprintf("%s #%u +ack %s owd: %li\n",
         tintstr(),id_,data_in_.bin.str(bin_name_buf),data_in_.time);
     if (data_in_.bin.layer()>2)
         data_in_dbl_ = data_in_.bin;
@@ -554,13 +554,13 @@ void    Channel::Recv (struct evbuffer *evb) {
         //	time_offset_ =  tintabs(time_offset_) - rtt_avg_>>1;
         //	dprintf("%s #%u time offset %lli\n",tintstr(),id_,time_offset_);
         //}
-        dprintf("%s #%u sendctrl rtt init %lli\n",tintstr(),id_,rtt_avg_);
+        dprintf("%s #%u sendctrl rtt init %li\n",tintstr(),id_,rtt_avg_);
     }
 
     bin_t data = evbuffer_get_length(evb) ? bin_t::NONE : bin_t::ALL;
 
 	if (DEBUGTRAFFIC)
-		fprintf(stderr,"recv c%d: size %d ", id(), evbuffer_get_length(evb));
+		fprintf(stderr,"recv c%d: size %lu ", id(), evbuffer_get_length(evb));
 
 	while (evbuffer_get_length(evb)) {
         uint8_t type = evbuffer_remove_8(evb);
@@ -714,8 +714,8 @@ bin_t Channel::OnData (struct evbuffer *evb) {  // TODO: HAVE NONE for corrupted
 
     // Arno: Assuming DATA last message in datagram
     if (evbuffer_get_length(evb) > hashtree()->chunk_size()) {
-    	dprintf("%s #%u !data chunk size mismatch %s: exp %lu got " PRISIZET "\n",tintstr(),id_,pos.str(bin_name_buf), hashtree()->chunk_size(), evbuffer_get_length(evb));
-    	fprintf(stderr,"WARNING: chunk size mismatch: exp %lu got " PRISIZET "\n",hashtree()->chunk_size(), evbuffer_get_length(evb));
+    	dprintf("%s #%u !data chunk size mismatch %s: exp %u got " PRISIZET "\n",tintstr(),id_,pos.str(bin_name_buf), hashtree()->chunk_size(), evbuffer_get_length(evb));
+    	fprintf(stderr,"WARNING: chunk size mismatch: exp %u got " PRISIZET "\n",hashtree()->chunk_size(), evbuffer_get_length(evb));
     }
 
     int length = (evbuffer_get_length(evb) < hashtree()->chunk_size()) ? evbuffer_get_length(evb) : hashtree()->chunk_size();
@@ -743,7 +743,7 @@ bin_t Channel::OnData (struct evbuffer *evb) {  // TODO: HAVE NONE for corrupted
     //      TODO: make the update time dependent on the DL speed!
     if (last_rtt_update_+(TINT_SEC<<2)<NOW || owds_.size() < 10) {
     	UpdateRTT();
-    	dprintf("%s #%u sendctrl rtt %lli dev %lli dip %lli based on the last %i owd samples\n",
+    	dprintf("%s #%u sendctrl rtt %li dev %li dip %li based on the last %lu owd samples\n",
     	                tintstr(),id_,rtt_avg_,dev_avg_, dip_avg_,owds_.size());
     }
 
@@ -852,7 +852,7 @@ void    Channel::OnAck (struct evbuffer *evb) {
         }
         if (owd_min_bins_[owd_min_bin_]>peer_owd_time)
             owd_min_bins_[owd_min_bin_] = peer_owd_time;
-        dprintf("%s #%u sendctrl rtt %lli dev %lli based on %s\n",
+        dprintf("%s #%u sendctrl rtt %li dev %li based on %s\n",
                 tintstr(),id_,rtt_avg_,dev_avg_,data_out_[di].bin.str(bin_name_buf));
         ack_rcvd_recent_++;
         // early loss detection by packet reordering
@@ -928,7 +928,7 @@ void    Channel::OnHint (struct evbuffer *evb) {
     // Ric: update the hint_size
     hint_in_size_ += hint.base_length();
     char bin_name_buf[32];
-    dprintf("%s #%u -hint %s [%i]\n",tintstr(),id_,hint.str(bin_name_buf), hint_in_size_);
+    dprintf("%s #%u -hint %s [%lu]\n",tintstr(),id_,hint.str(bin_name_buf), hint_in_size_);
 }
 
 
@@ -969,7 +969,7 @@ void Channel::OnHandshake (struct evbuffer *evb) {
 			time_offset_ = remote_time-NOW;
 			//time_offset_ = time_offset_>0 ? time_offset_ - (rtt_avg_>>1) : time_offset_ + (rtt_avg_>>1);
 			time_offset_ += rtt_avg_>>1;
-			dprintf("%s #%u time offset %lli\n",tintstr(),id_,time_offset_);
+			dprintf("%s #%u time offset %li\n",tintstr(),id_,time_offset_);
 		}
     }
 }
@@ -1290,8 +1290,10 @@ void Channel::Close () {
 }
 
 
-void Channel::Reschedule () {
+static int xxx = -1;
 
+void Channel::Reschedule () {
+    xxx++;
 	tint pktsRate = 0;
 
 	// RATELIMIT
@@ -1310,13 +1312,13 @@ void Channel::Reschedule () {
 				if (c->send_control_==LEDBAT_CONTROL) {
 					tot_req += c->hint_in_size_;
 					peers++;
-					dprintf("%s #%u tot req from channel %i\t%i-%lu\n",tintstr(),id_, c->id_,tot_req,c->hint_in_size_);
+					//if (xxx % 100 == 0) fprintf(stderr, "\e[41m%s #%u tot req from channel %i\t%lu-%lu\e[0m\n",tintstr(),id_, c->id_,tot_req,c->hint_in_size_);
 				}
 			}
 		}
 
 		float ratio = tot_req ? float(hint_in_size_)/float(tot_req) : 1.0;
-		dprintf("\t\t\t\t ratio: %f", ratio);
+		//if (xxx % 100 == 0) fprintf(stderr, "\t\t\t\t ratio: %f", ratio);
 		// deviate the ratio to an equal share
 
 		if (ratio!=1.0) {
@@ -1324,9 +1326,10 @@ void Channel::Reschedule () {
 			ratio += (1.0 / (peers) - ratio) * 1.0/(peers);
 			//ratio = 1.0/peers;
 		}
-		dprintf("=>%f\n",ratio);
+		//if (xxx % 100 == 0) fprintf(stderr, "=>%f\n",ratio);
 
 		pktsRate = TINT_SEC/(rate*ratio);
+		fprintf(stderr, "pktsRate: %li\n",pktsRate);
 		//transfer().OnSendNoData();
 
 	}
@@ -1337,13 +1340,16 @@ void Channel::Reschedule () {
     next_send_time_ = NextSendTime();
 
     if (next_send_time_!=TINT_NEVER) {
-
+        fprintf(stderr, " hint_in_size_: %li\n", hint_in_size_);
     	assert(next_send_time_<NOW+TINT_MIN);
         tint duein = next_send_time_-NOW;
 
     	if (pktsRate) {
     		duein = max(duein, last_send_time_+pktsRate-NOW);
-    		dprintf("%s #%u Upload Limitation\tspeed:%02lf limit:%lf   duein:%02li hint_in:%i\n",tintstr(),id_,transfer().GetCurrentSpeed(DDIR_UPLOAD), transfer().GetMaxSpeed(DDIR_UPLOAD), duein,hint_in_size_);
+    		//fprintf(stderr, " %li %li %li\n" ,last_send_time_, pktsRate, NOW);
+    		fprintf(stderr, " duein: %li\n", duein);
+    		//fprintf(stderr, "%lu\n", hint_in_size_);
+    		//fprintf(stderr, "%s #%u Upload Limitation\tspeed:%02lf limit:%lf   duein:%li hint_in:%lu\n",tintstr(),id_,transfer().GetCurrentSpeed(DDIR_UPLOAD), transfer().GetMaxSpeed(DDIR_UPLOAD), duein,hint_in_size_);
     	}
 
 
@@ -1361,14 +1367,14 @@ void Channel::Reschedule () {
         	if (evsend_ptr_ != NULL) {
         		struct timeval duetv = *tint2tv(duein);
         		evtimer_add(evsend_ptr_,&duetv);
-        		dprintf("%s #%u requeue for %s in %lli\n",tintstr(),id_,tintstr(next_send_time_+duein), duein);
+        		fprintf(stderr, "%s #%u requeue for %s in %li\n",tintstr(),id_,tintstr(next_send_time_+duein), duein);
         	}
         	else
-        		dprintf("%s #%u cannot requeue for %s, closed\n",tintstr(),id_,tintstr(next_send_time_));
+        	    fprintf(stderr, "%s #%u cannot requeue for %s, closed\n",tintstr(),id_,tintstr(next_send_time_));
         }
     } else {
     	// SAFECLOSE
-        dprintf("%s #%u resched, will close\n",tintstr(),id_);
+        fprintf(stderr, "%s #%u resched, will close\n",tintstr(),id_);
 		this->Schedule4Close();
     }
 }
