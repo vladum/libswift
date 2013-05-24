@@ -33,7 +33,7 @@ struct event Channel::evrecv;
  * we send HINTs for 2 chunks at the moment. This constant can be used to
  * get greater granularity. Set to 0 for original behaviour.
  */
-#define HINT_GRANULARITY	0 // chunks
+#define HINT_GRANULARITY	2 // chunks
 
 /** Arno, 2012-03-16: Swift can now tunnel data from CMDGW over UDP to
  * CMDGW at another swift instance. This is the default channel ID on UDP
@@ -240,7 +240,7 @@ void    Channel::Send () {
 }
 
 void    Channel::AddHint (struct evbuffer *evb) {
-
+    std::deque<bin_t> tbc;
 	// RATELIMIT
 	// Policy is to not send hints when we are above speed limit
 	//fprintf(stderr,"AddHint: cur %f max %f\n", transfer().GetCurrentSpeed(DDIR_DOWNLOAD), transfer().GetMaxSpeed(DDIR_DOWNLOAD));
@@ -261,7 +261,7 @@ void    Channel::AddHint (struct evbuffer *evb) {
         hint_out_size_ -= hint.base_length();
         hint_out_.pop_front();
         // Ric: send Cancel msg
-        cancel_out_.push_back(hint);
+        tbc.push_back(hint);
     }
 
     int first_plan_pck = max ( (tint)1, plan_for / dip_avg_ );
@@ -312,6 +312,23 @@ void    Channel::AddHint (struct evbuffer *evb) {
             char bin_name_buf[32];
             dprintf("%s #%u +hint %s [%lu]\n",tintstr(),id_,hint.str(bin_name_buf),hint_out_size_);
             dprintf("%s #%u +hint base %s width %llu\n",tintstr(),id_,hint.base_left().str(bin_name_buf), hint.base_length() );
+            // Ric: final cancel the hints that have been removed
+            while (!tbc.empty()) {
+                bin_t c = tbc.front();
+                if (!c.contains(hint) && !hint.contains(c))
+                    cancel_out_.push_back(c);
+                else if (c.contains(hint))
+                   while (c.contains(hint) && c!=hint) {
+                       if (c>hint)
+                           c.to_left();
+                       else
+                           c.to_right();
+                       cancel_out_.push_back(c.sibling());
+                   }
+                else if (c == hint)
+                       break;
+                tbc.pop_front();
+            }
             hint_out_.push_back(hint);
             hint_out_size_ += hint.base_length();
             //fprintf(stderr,"send c%d: HINTLEN %i\n", id(), hint.base_length());
@@ -320,6 +337,10 @@ void    Channel::AddHint (struct evbuffer *evb) {
         else
             dprintf("%s #%u Xhint\n",tintstr(),id_);
 
+        while (!tbc.empty()) {
+            cancel_out_.push_back(tbc.front());
+            tbc.pop_front();
+        }
     }
 }
 
@@ -1340,7 +1361,6 @@ void Channel::Reschedule () {
     next_send_time_ = NextSendTime();
 
     if (next_send_time_!=TINT_NEVER) {
-        fprintf(stderr, " hint_in_size_: %li\n", hint_in_size_);
     	assert(next_send_time_<NOW+TINT_MIN);
         tint duein = next_send_time_-NOW;
 
@@ -1367,10 +1387,10 @@ void Channel::Reschedule () {
         	if (evsend_ptr_ != NULL) {
         		struct timeval duetv = *tint2tv(duein);
         		evtimer_add(evsend_ptr_,&duetv);
-        		fprintf(stderr, "%s #%u requeue for %s in %li\n",tintstr(),id_,tintstr(next_send_time_+duein), duein);
+        		dprintf("%s #%u requeue for %s in %llu\n",tintstr(),id_,tintstr(next_send_time_+duein), (uint64_t)duein);
         	}
         	else
-        	    fprintf(stderr, "%s #%u cannot requeue for %s, closed\n",tintstr(),id_,tintstr(next_send_time_));
+        	    dprintf("%s #%u cannot requeue for %s, closed\n",tintstr(),id_,tintstr(next_send_time_));
         }
     } else {
     	// SAFECLOSE
