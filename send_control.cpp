@@ -59,7 +59,6 @@ tint    Channel::SwitchSendControl (send_control_t control_mode) {
         case LEDBAT_CONTROL:
             break;
         case CLOSE_CONTROL:
-            fprintf(stderr, "\e[41mCLOSIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIINNNNNNNNNNNNNNNGGGGGGGGGGGGGGGG!!!!!!!!!!!!\e[0m\n");
             break;
         default:
             assert(false);
