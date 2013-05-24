@@ -595,30 +595,26 @@ void ReportCallback(int fd, short event, void *arg) {
     if (report_progress && single_fd  < 0) {
         // Only for seeder.
         fprintf(stderr,
-            "\e[31mSEED %lli dgram %lli raw bytes up %lli bytes up, " \
-            "%lli dgram %lli raw bytes down %lli bytes down\e[0m\n",
+            "SEED %lli dgram %lli raw bytes up %lli bytes up, " \
+            "%lli dgram %lli raw bytes down %lli bytes down\n",
             Channel::global_dgrams_up, Channel::global_raw_bytes_up, Channel::global_bytes_up,
             Channel::global_dgrams_down, Channel::global_raw_bytes_down, Channel::global_bytes_down );
     }
 
 	if (single_fd  >= 0)
 	{
+        FileTransfer *ft = FileTransfer::file(single_fd);
 		if (report_progress) {
 			fprintf(stderr,
 				"%s %lli of %lli (seq %lli) %lli dgram %lli bytes up, "	\
-				"%lli dgram %lli bytes down\n",
+				"%lli dgram %lli bytes down %lf upload %lf dwload\n",
 				IsComplete(single_fd ) ? "DONE" : "done",
 				Complete(single_fd), Size(single_fd), SeqComplete(single_fd),
 				Channel::global_dgrams_up, Channel::global_raw_bytes_up,
-				Channel::global_dgrams_down, Channel::global_raw_bytes_down );
+				Channel::global_dgrams_down, Channel::global_raw_bytes_down ,
+				ft->GetCurrentSpeed(DDIR_UPLOAD), ft->GetCurrentSpeed(DDIR_DOWNLOAD));
 		}
 
-        FileTransfer *ft = FileTransfer::file(single_fd);
-        if (report_progress) { // TODO: move up
-        	fprintf(stderr,"upload %lf\n",ft->GetCurrentSpeed(DDIR_UPLOAD));
-        	fprintf(stderr,"dwload %lf\n",ft->GetCurrentSpeed(DDIR_DOWNLOAD) );
-        	//fprintf(stderr,"npeers %d\n",ft->GetNumLeechers()+ft->GetNumSeeders() );
-        }
         // Update speed measurements such that they decrease when DL/UL stops
         // Always
     	ft->OnRecvData(0);
