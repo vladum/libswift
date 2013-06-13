@@ -595,8 +595,9 @@ void ReportCallback(int fd, short event, void *arg) {
     if (report_progress && single_fd  < 0) {
         // Only for seeder.
         fprintf(stderr,
-            "SEED %lli dgram %lli raw bytes up %lli bytes up, " \
+            "SEED %s %lli dgram %lli raw bytes up %lli bytes up, " \
             "%lli dgram %lli raw bytes down %lli bytes down\n",
+            tintstr(),
             Channel::global_dgrams_up, Channel::global_raw_bytes_up, Channel::global_bytes_up,
             Channel::global_dgrams_down, Channel::global_raw_bytes_down, Channel::global_bytes_down );
     }
@@ -606,9 +607,9 @@ void ReportCallback(int fd, short event, void *arg) {
         FileTransfer *ft = FileTransfer::file(single_fd);
 		if (report_progress) {
 			fprintf(stderr,
-				"%s %lli of %lli (seq %lli) %lli dgram %lli bytes up, "	\
+				"%s %s %lli of %lli (seq %lli) %lli dgram %lli bytes up, "	\
 				"%lli dgram %lli bytes down %lf upload %lf dwload\n",
-				IsComplete(single_fd ) ? "DONE" : "done",
+				IsComplete(single_fd ) ? "DONE" : "done", tintstr(),
 				Complete(single_fd), Size(single_fd), SeqComplete(single_fd),
 				Channel::global_dgrams_up, Channel::global_raw_bytes_up,
 				Channel::global_dgrams_down, Channel::global_raw_bytes_down ,
