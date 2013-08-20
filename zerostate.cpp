@@ -154,7 +154,7 @@ FileTransfer * ZeroState::Find(Sha1Hash &root_hash)
 	    meta_prefix = file_name;
 	else
 	    meta_prefix = metadir_+FILE_SEP+root_hash.hex();
-	uint32_t chunk_size=SWIFT_DEFAULT_CHUNK_SIZE;
+	uint32_t chunk_size=8192;//SWIFT_DEFAULT_CHUNK_SIZE;
 
 	dprintf("%s #0 zero find %s from %s\n",tintstr(),file_name.c_str(), getcwd_utf8().c_str() );
 
