@@ -205,8 +205,8 @@ void            MmapHashTree::Submit () {
     //fprintf(stderr,"hashtree: submit: cs %i\n", chunk_size_);
 
     peak_count_ = gen_peaks(sizec_,peaks_);
-    int hashes_size = Sha1Hash::SIZE*sizec_*2;
-    dprintf("%s hashtree submit resizing hash file to %d\n",tintstr(), hashes_size );
+    uint64_t hashes_size = Sha1Hash::SIZE*sizec_*2;
+    dprintf("%s hashtree submit resizing hash file to %lu\n",tintstr(), hashes_size);
     if (hashes_size == 0) {
         SetBroken();
         return;
