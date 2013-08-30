@@ -775,6 +775,7 @@ namespace swift {
         static tint MAX_POSSIBLE_RTT;
         static tint MIN_PEX_REQUEST_INTERVAL;
         static FILE* debug_file;
+        static FILE* debug_aux_file;
 
         const std::string id_string () const;
         /** A channel is "established" if had already sent and received packets. */
@@ -1270,9 +1271,11 @@ namespace swift {
 
 #ifndef SWIFT_MUTE
 #define dprintf(...) do { if (Channel::debug_file) fprintf(Channel::debug_file,__VA_ARGS__); } while (0)
+#define daprintf(...) do { if (Channel::debug_aux_file) fprintf(Channel::debug_aux_file,__VA_ARGS__); } while (0)
 #define dflush() fflush(Channel::debug_file)
 #else
 #define dprintf(...) do {} while(0)
+#define daprintf(...) do {} while(0)
 #define dflush() do {} while(0)
 #endif
 #define eprintf(...) fprintf(stderr,__VA_ARGS__)
