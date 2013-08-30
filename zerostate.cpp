@@ -151,7 +151,7 @@ int ZeroState::Find(const Sha1Hash &root_hash)
 
     //std::string file_name = "content.avi";
     std::string file_name = contentdir_+FILE_SEP+root_hash.hex();
-    uint32_t chunk_size=SWIFT_DEFAULT_CHUNK_SIZE;
+    uint32_t chunk_size=8192;//SWIFT_DEFAULT_CHUNK_SIZE;
 
     dprintf("%s #0 zero find %s from %s\n",tintstr(),file_name.c_str(), getcwd_utf8().c_str() );
 
@@ -169,7 +169,7 @@ int ZeroState::Find(const Sha1Hash &root_hash)
         return -1;
 
     // Open as ZeroState
-    return swift::Open(file_name, root_hash, Address(), false, true, true);
+    return swift::Open(file_name, root_hash, Address(), false, true, true, true, chunk_size);
 }
 
 
