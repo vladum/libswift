@@ -42,7 +42,7 @@ struct event Channel::evrecv;
  * Otherwise, if the link between two peers is heavily congested or has a high
  * pkt loss rate, ledbat will close the connection. (short explanation)
  */
-#define HINT_GRANULARITY    1 // chunks
+#define HINT_GRANULARITY    2 // chunks
 
 /** Arno, 2012-03-16: Swift can now tunnel data from CMDGW over UDP to
  * CMDGW at another swift instance. This is the default channel ID on UDP
