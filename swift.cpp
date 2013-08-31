@@ -129,6 +129,12 @@ long long int cmdgw_report_counter=0;
 long long int cmdgw_report_interval=REPORT_INTERVAL; // seconds
 
 
+// Debug counters (vladum)
+uint64_t count_bug_todo = 0;
+uint64_t count_dup_data = 0;
+uint64_t count_chkmis_data = 0;
+uint64_t count_data = 0;
+
 // UNICODE: TODO, convert to std::string carrying UTF-8 arguments. Problem is
 // a string based getopt_long type parser.
 int utf8main (int argc, char** argv)
@@ -767,13 +773,17 @@ void ReportCallback(int fd, short event, void *arg) {
             Channel* c = swift::Channel::channel(1);
             fprintf(stderr,
                 "%s %s %lli of %lli (seq %lli) %lli dgram %lli bytes up, "    \
-                "%lli dgram %lli bytes down upload %lf dwload %lf %lf %llu %d\n",
+                "%lli dgram %lli bytes down upload %lf dwload %lf %lf %llu %d "\
+                "%llu %llu %llu %llu\n",
                 IsComplete(single_td ) ? "DONE" : "done",
                 tintstr_usecs(),
                 Complete(single_td), Size(single_td), SeqComplete(single_td),
                 Channel::global_dgrams_up, Channel::global_raw_bytes_up,
                 Channel::global_dgrams_down, Channel::global_raw_bytes_down,
-                up, dw, prg, c->GetHintOutSize(), c->GetSendControl());
+                up, dw, prg, c->GetHintOutSize(), c->GetSendControl(),
+                count_data, count_chkmis_data, count_dup_data, count_bug_todo);
+
+        count_data = count_chkmis_data = count_dup_data = count_bug_todo = 0;
 
         if (up/1048576 > 1)
             fprintf(stderr,"upload %.2f MB/s (%lf B/s)\n", up/(1<<20), up);

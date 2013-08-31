@@ -23,6 +23,9 @@ using namespace swift;
 
 const Sha1Hash Sha1Hash::ZERO = Sha1Hash();
 
+// Debug counters (vladum)
+extern uint64_t count_bug_todo;
+
 void SHA1 (const void *data, size_t length, unsigned char *hash) {
     blk_SHA_CTX ctx;
     blk_SHA1_Init(&ctx);
@@ -607,6 +610,7 @@ bool            MmapHashTree::OfferData (bin_t pos, const char* data, size_t len
         //fprintf(stderr,"INVALID HASH FOR %lli layer %d\n", pos.toUInt(), pos.layer() );
         // Ric: TODO it's not necessarily a bug.. it happens if a pkt was lost!
         dprintf("%s hashtree check failed (bug TODO) %s\n",tintstr(),pos.str().c_str());
+        count_bug_todo += 1;
         return false;
     }
 

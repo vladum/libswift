@@ -21,6 +21,9 @@ using namespace std;
 struct event_base *Channel::evbase;
 struct event Channel::evrecv;
 
+// Debug counters (vladum)
+extern uint64_t count_data, count_chkmis_data, count_dup_data;
+
 #define DEBUGTRAFFIC     0
 
 /** Arno: Victor's design allows a sender to choose some data to push to
@@ -916,12 +919,14 @@ bin_t Channel::OnData (struct evbuffer *evb) {  // TODO: HAVE NONE for corrupted
 
     // Arno: Assuming DATA last message in datagram
     if (evbuffer_get_length(evb) > transfer()->chunk_size()) {
+        count_chkmis_data += 1;
     	dprintf("%s #%u !data chunk size mismatch %s: exp %u got " PRISIZET "\n",tintstr(),id_,pos.str().c_str(), transfer()->chunk_size(), evbuffer_get_length(evb));
     	fprintf(stderr,"WARNING: chunk size mismatch: exp %lu got " PRISIZET "\n",transfer()->chunk_size(), evbuffer_get_length(evb));
     }
 
     int length = (evbuffer_get_length(evb) < transfer()->chunk_size()) ? evbuffer_get_length(evb) : transfer()->chunk_size();
     if (!transfer()->ack_out()->is_empty(pos)) {
+        count_dup_data += 1;
         // Arno, 2012-01-24: print message for duplicate
         dprintf("%s #%u Ddata %s\n",tintstr(),id_,pos.str().c_str());
         evbuffer_drain(evb, length);
@@ -963,6 +968,7 @@ bin_t Channel::OnData (struct evbuffer *evb) {  // TODO: HAVE NONE for corrupted
     }
 
     evbuffer_drain(evb, length);
+    count_data += 1;
     dprintf("%s #%u -data %s\n",tintstr(),id_,pos.str().c_str());
 
     if (DEBUGTRAFFIC)
