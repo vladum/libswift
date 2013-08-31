@@ -219,7 +219,7 @@ Channel *ContentTransfer::RandomChannel(Channel *notc) {
 void      ContentTransfer::OnRecvData(int n)
 {
 	speeddwcount_++;
-	uint32_t speed = cur_speed_[DDIR_DOWNLOAD].GetSpeedNeutral();
+	uint32_t speed = cur_speed_[DDIR_DOWNLOAD].GetSpeed();
 	uint32_t rate = speed & ~1048575 ? 32:8;
 	if (speeddwcount_>=rate)
 	{
@@ -231,7 +231,7 @@ void      ContentTransfer::OnRecvData(int n)
 void      ContentTransfer::OnSendData(int n)
 {
     speedupcount_++;
-	uint32_t speed = cur_speed_[DDIR_UPLOAD].GetSpeedNeutral();
+	uint32_t speed = cur_speed_[DDIR_UPLOAD].GetSpeed();
 	uint32_t rate = speed & ~1048575 ? 32:8;
     if (speedupcount_>=rate)
     {
@@ -257,7 +257,7 @@ void      ContentTransfer::OnSendNoData()
 
 double      ContentTransfer::GetCurrentSpeed(data_direction_t ddir)
 {
-    return cur_speed_[ddir].GetSpeedNeutral();
+    return cur_speed_[ddir].GetSpeed();
 }
 
 
