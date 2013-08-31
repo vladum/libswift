@@ -1259,6 +1259,7 @@ namespace swift {
     binvector bin_fragment(bin_t &origbin, bin_t &cancelbin);
 
     const char* tintstr(tint t=0);
+    const char* tintstr_usecs(tint t=0);
  #define SWIFT_MAX_CONNECTIONS 20
 
     // SOCKTUNNEL

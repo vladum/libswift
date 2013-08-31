@@ -25,7 +25,7 @@ using namespace swift;
 
 // Local constants
 #define RESCAN_DIR_INTERVAL	30 // seconds
-#define REPORT_INTERVAL		 1 // 1 second. Use cmdgw_report_interval for larger intervals
+#define REPORT_INTERVAL		1 // 1 second. Use cmdgw_report_interval for larger intervals
 
 // Arno, 2012-09-18: LIVE: Somehow Win32 works better when reading at a slower pace
 #ifdef WIN32
@@ -760,16 +760,19 @@ void ReportCallback(int fd, short event, void *arg) {
     if (single_td  >= 0)
     {
         if (report_progress) {
+            double up = swift::GetCurrentSpeed(single_td,DDIR_UPLOAD);
+            double dw = swift::GetCurrentSpeed(single_td,DDIR_DOWNLOAD);
+            double prg = (double)Complete(single_td) / Size(single_td);
             fprintf(stderr,
-                "%s %lli of %lli (seq %lli) %lli dgram %lli bytes up, "    \
-                "%lli dgram %lli bytes down\n",
+                "%s %s %lli of %lli (seq %lli) %lli dgram %lli bytes up, "    \
+                "%lli dgram %lli bytes down upload %lf dwload %lf %lf\n",
                 IsComplete(single_td ) ? "DONE" : "done",
+                tintstr_usecs(),
                 Complete(single_td), Size(single_td), SeqComplete(single_td),
                 Channel::global_dgrams_up, Channel::global_raw_bytes_up,
-                Channel::global_dgrams_down, Channel::global_raw_bytes_down );
+                Channel::global_dgrams_down, Channel::global_raw_bytes_down,
+                up, dw, prg);
 
-        double up = swift::GetCurrentSpeed(single_td,DDIR_UPLOAD);
-        double dw = swift::GetCurrentSpeed(single_td,DDIR_DOWNLOAD);
         if (up/1048576 > 1)
             fprintf(stderr,"upload %.2f MB/s (%lf B/s)\n", up/(1<<20), up);
         else
@@ -780,12 +783,11 @@ void ReportCallback(int fd, short event, void *arg) {
             fprintf(stderr,"dwload %.2f KB/s (%lf B/s)\n", dw/(1<<10), dw);
 
 		// Ric: remove. LEDBAT tests
-		Channel* c = swift::Channel::channel(1);
-		if (c!=NULL) {
-			fprintf(stderr,"ledbat %3.2f\n",c->GetCwnd());
-			fprintf(stderr,"hints_in %lu\n",c->GetHintSize());
-		}
-		//fprintf(stderr,"npeers %d\n",ft->GetNumLeechers()+ft->GetNumSeeders() );
+		// Channel* c = swift::Channel::channel(1);
+		// if (c!=NULL) {
+		// 	fprintf(stderr,"LEDBAT %s cwnd %3.2f hints_in %lu\n", tintstr_usecs(), c->GetCwnd(), c->GetHintSize());
+		// }
+		// fprintf(stderr,"NPEERS %s seeders %d leechers %d\n", tintstr_usecs(), ft->GetNumLeechers(), ft->GetNumSeeders());
 	}
 
 
@@ -818,10 +820,12 @@ void ReportCallback(int fd, short event, void *arg) {
             if (ct != NULL)
         	nactive++;
             double up = swift::GetCurrentSpeed(td,DDIR_UPLOAD);
-            if (up/1048576 > 1)
-                fprintf(stderr,"%d: upload %.2f MB/s\t", td, up/(1<<20));
-            else
-                fprintf(stderr,"%d: upload %.2f KB/s\t", td, up/(1<<10));
+            // if (up/1048576 > 1)
+            //     fprintf(stderr,"%d: upload %.2f MB/s\t", td, up/(1<<20));
+            // else
+            //     fprintf(stderr,"%d: upload %.2f KB/s\t", td, up/(1<<10));
+
+            fprintf(stderr, "SEED %s #%d %lf\n", tintstr_usecs(), td, up);
         }
         /*
         fprintf(stderr,

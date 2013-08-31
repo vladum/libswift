@@ -17,7 +17,7 @@ namespace swift {
 class MovingAverageSpeed
 {
     public: 
-        MovingAverageSpeed( tint speed_interval = 5 * TINT_SEC, tint fudge = TINT_SEC );
+        MovingAverageSpeed( tint speed_interval = 1 * TINT_SEC, tint fudge = TINT_SEC );
 	void AddPoint( uint64_t amount );
         double GetSpeed();
         double GetSpeedNeutral();
