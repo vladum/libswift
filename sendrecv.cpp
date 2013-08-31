@@ -30,7 +30,7 @@ struct event Channel::evrecv;
 #define ENABLE_SENDERSIZE_PUSH 0
 
 
-#define ENABLE_CANCEL 		1
+#define ENABLE_CANCEL 		0
 
 
 /** Arno, 2011-11-24: When rate limit is on and the download is in progress
