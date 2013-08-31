@@ -575,11 +575,14 @@ bool            MmapHashTree::OfferHash (bin_t pos, const Sha1Hash& hash) {
         // layer 0. Higher layers will never have 0 hashes
         // as SHA1(zero+zero) != zero (but b80de5...)
         //
-        if (hashes_[p.left().toUInt()] == Sha1Hash::ZERO || hashes_[p.right().toUInt()] == Sha1Hash::ZERO)
+        if (hashes_[p.left().toUInt()] == Sha1Hash::ZERO || hashes_[p.right().toUInt()] == Sha1Hash::ZERO) {
+            fprintf(stderr, " ZERO hash on higher level ");
             break;
+        }
         uphash = Sha1Hash(hashes_[p.left().toUInt()],hashes_[p.right().toUInt()]);
     }// walk to the nearest proven hash
 
+    fprintf(stderr, " %s %s \n", uphash.hex().c_str(), hashes_[p.toUInt()].hex().c_str());
     success = (uphash==hashes_[p.toUInt()]);
     // LESSHASH
     if (success) {
