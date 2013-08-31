@@ -763,15 +763,17 @@ void ReportCallback(int fd, short event, void *arg) {
             double up = swift::GetCurrentSpeed(single_td,DDIR_UPLOAD);
             double dw = swift::GetCurrentSpeed(single_td,DDIR_DOWNLOAD);
             double prg = (double)Complete(single_td) / Size(single_td);
+
+            Channel* c = swift::Channel::channel(1);
             fprintf(stderr,
                 "%s %s %lli of %lli (seq %lli) %lli dgram %lli bytes up, "    \
-                "%lli dgram %lli bytes down upload %lf dwload %lf %lf\n",
+                "%lli dgram %lli bytes down upload %lf dwload %lf %lf %llu %d\n",
                 IsComplete(single_td ) ? "DONE" : "done",
                 tintstr_usecs(),
                 Complete(single_td), Size(single_td), SeqComplete(single_td),
                 Channel::global_dgrams_up, Channel::global_raw_bytes_up,
                 Channel::global_dgrams_down, Channel::global_raw_bytes_down,
-                up, dw, prg);
+                up, dw, prg, c->GetHintOutSize(), c->GetSendControl());
 
         if (up/1048576 > 1)
             fprintf(stderr,"upload %.2f MB/s (%lf B/s)\n", up/(1<<20), up);
@@ -820,12 +822,15 @@ void ReportCallback(int fd, short event, void *arg) {
             if (ct != NULL)
         	nactive++;
             double up = swift::GetCurrentSpeed(td,DDIR_UPLOAD);
+
+            Channel* c = ct->GetChannels()->at(0);
+
             // if (up/1048576 > 1)
             //     fprintf(stderr,"%d: upload %.2f MB/s\t", td, up/(1<<20));
             // else
             //     fprintf(stderr,"%d: upload %.2f KB/s\t", td, up/(1<<10));
 
-            fprintf(stderr, "SEED %s #%d %lf\n", tintstr_usecs(), td, up);
+            fprintf(stderr, "SEED %s #%d %lf %llu %d\n", tintstr_usecs(), td, up, c->GetHintSize(), c->GetSendControl());
         }
         /*
         fprintf(stderr,

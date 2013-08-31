@@ -717,6 +717,8 @@ namespace swift {
         // Ric: used for testing LEDBAT's behaviour
         float		GetCwnd() { return cwnd_; }
         uint64_t 	GetHintSize() { return hint_in_size_; }
+        uint64_t    GetHintOutSize() { return hint_out_size_; }
+        send_control_t GetSendControl() { return send_control_; }
         bool 		Totest;
         bool 		Tocancel;
 
