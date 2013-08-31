@@ -521,11 +521,19 @@ bin_t         MmapHashTree::peak_for (bin_t pos) const {
 }
 
 bool            MmapHashTree::OfferHash (bin_t pos, const Sha1Hash& hash) {
-    if (!size_)  // only peak hashes are accepted at this point
+    bool success;
+    swift::Sha1Hash uphash;
+    bin_t p;
+
+    fprintf(stderr, ">>>>>>>> size: %llu", size_);
+    if (!size_) { // only peak hashes are accepted at this point
+        fprintf(stderr, " AAAAAAAAAA offer peak\n");
         return OfferPeakHash(pos,hash);
+    }
     if (hashes_ == NULL)
     {
         dprintf("%s hashtree never loaded correctly from disk\n",tintstr() );
+        fprintf(stderr, " XXXXXXXXXX\n");
         return false;
     }
 
@@ -534,22 +542,29 @@ bool            MmapHashTree::OfferHash (bin_t pos, const Sha1Hash& hash) {
     	return true;
 
     bin_t peak = peak_for(pos);
+    fprintf(stderr, " pos: %s peak: %s", pos.str().c_str(), peak.str().c_str());
     if (peak.is_none())
-        return false;
-    if (peak==pos)
+        goto bugdebug;
+    if (peak==pos) {
+        fprintf(stderr, "%s %s =============\n", hash.hex().c_str(), hashes_[pos.toUInt()].hex().c_str());
         return hash == hashes_[pos.toUInt()];
-    if (!ack_out_.is_empty(pos.parent()))
+    }
+    if (!ack_out_.is_empty(pos.parent())) {
+        fprintf(stderr, "%s %s =============\n", hash.hex().c_str(), hashes_[pos.toUInt()].hex().c_str());
         return hash==hashes_[pos.toUInt()]; // have this hash already, even accptd data
+    }
     // LESSHASH
     // Arno: if we already verified this hash against the root, don't replace
-    if (!is_hash_verified_.is_empty(bin_t(0,pos.toUInt())))
+    if (!is_hash_verified_.is_empty(bin_t(0,pos.toUInt()))) {
+        fprintf(stderr, "%s %s =============\n", hash.hex().c_str(), hashes_[pos.toUInt()].hex().c_str());
         return hash == hashes_[pos.toUInt()];
+    }
 
     hashes_[pos.toUInt()] = hash;
     if (!pos.is_base())
-        return false; // who cares?
-    bin_t p = pos;
-    Sha1Hash uphash = hash;
+        goto bugdebug; // who cares?
+    p = pos;
+    uphash = hash;
     // Arno: Note well: bin_t(0,p.toUInt()) is to abuse binmap as bitmap.
     while ( p!=peak && ack_out_.is_empty(p) && is_hash_verified_.is_empty(bin_t(0,p.toUInt())) ) {
         hashes_[p.toUInt()] = uphash;
@@ -565,7 +580,7 @@ bool            MmapHashTree::OfferHash (bin_t pos, const Sha1Hash& hash) {
         uphash = Sha1Hash(hashes_[p.left().toUInt()],hashes_[p.right().toUInt()]);
     }// walk to the nearest proven hash
 
-    bool success = (uphash==hashes_[p.toUInt()]);
+    success = (uphash==hashes_[p.toUInt()]);
     // LESSHASH
     if (success) {
         // Arno: The hash checks out. Mark all hashes on the uncle path as
@@ -587,7 +602,11 @@ bool            MmapHashTree::OfferHash (bin_t pos, const Sha1Hash& hash) {
         }
     }
 
+    fprintf(stderr, " -------------- success: %d\n", success);
     return success;
+bugdebug:
+    fprintf(stderr, " <<<<<<<<<<<<<<<<<<\n");
+    return false;
 }
 
 
