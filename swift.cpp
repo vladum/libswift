@@ -13,7 +13,8 @@
 #include <cfloat>
 #include <sstream>
 #include <iostream>
-
+#include <stdexcept>
+ 
 #include <event2/http.h>
 #include <event2/http_struct.h>
 
@@ -836,8 +837,12 @@ void ReportCallback(int fd, short event, void *arg) {
             uint64_t hints = 0;
             int send_control = 0;
             if (ct != NULL) {
-                Channel* c = ct->GetChannels()->at(0);
-                fprintf(stderr, "FFFFFFFFFFFFFF %p\n", c);
+                Channel* c;
+                try {
+                    c = ct->GetChannels()->at(0);
+                } catch (const std::out_of_range& oor) {
+                    c = NULL;
+                }
                 if (c != NULL) {
                     send_control = c->GetSendControl();
                     hints = c->GetHintSize();
