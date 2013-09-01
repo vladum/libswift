@@ -16,6 +16,7 @@
 
 #include "swift.h"
 #include "compat.h"
+#include "serialize.h"
 
 using namespace swift;
 
@@ -168,7 +169,7 @@ int ZeroState::Find(const Sha1Hash &root_hash)
     FILE *f = fopen(reqfilename.c_str(), "r");
     if (!f)
         return -1;
-    fscanf(f, "version %*i\nroot hash %*s\nchunk size %u\n", &chunk_size);
+    fscanf_retiffail(f, "version %*i\nroot hash %*s\nchunk size %u\n", &chunk_size);
     reqfilename = file_name+".mhash";
     ret = file_exists_utf8(reqfilename);
     if (ret < 0 || ret == 0 || ret == 2)
