@@ -833,14 +833,22 @@ void ReportCallback(int fd, short event, void *arg) {
         	nactive++;
             double up = swift::GetCurrentSpeed(td,DDIR_UPLOAD);
 
-            Channel* c = ct->GetChannels()->at(0);
-
+            uint64_t hints = 0;
+            int send_control = 0;
+            if (ct != NULL) {
+                Channel* c = ct->GetChannels()->at(0);
+                fprintf(stderr, "FFFFFFFFFFFFFF %p\n", c);
+                if (c != NULL) {
+                    send_control = c->GetSendControl();
+                    hints = c->GetHintSize();
+                }
+            }
             // if (up/1048576 > 1)
             //     fprintf(stderr,"%d: upload %.2f MB/s\t", td, up/(1<<20));
             // else
             //     fprintf(stderr,"%d: upload %.2f KB/s\t", td, up/(1<<10));
 
-            fprintf(stderr, "SEED %s #%d %lf %llu %d\n", tintstr_usecs(), td, up, c->GetHintSize(), c->GetSendControl());
+            fprintf(stderr, "SEED %s #%d %lf %llu %d\n", tintstr_usecs(), td, up, hints, send_control);
         }
         /*
         fprintf(stderr,
