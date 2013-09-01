@@ -105,7 +105,9 @@ ssize_t  Storage::Write(const void *buf, size_t nbyte, int64_t offset)
 
     if (state_ == STOR_STATE_SINGLE_FILE)
     {
-        return pwrite(single_fd_, buf, nbyte, offset);
+        int r = pwrite(single_fd_, buf, nbyte, offset);
+        dprintf("%s %s storage: Write: fd %d nbyte %d off %lld state %d ret %d\n", tintstr(), roothashhex().c_str(), single_fd_, nbyte,offset,state_, r);
+        return r;
     }
     // MULTIFILE
     if (state_ == STOR_STATE_INIT)
