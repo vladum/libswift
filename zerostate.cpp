@@ -12,6 +12,8 @@
  *  Copyright 2009-2016 TECHNISCHE UNIVERSITEIT DELFT. All rights reserved.
  *
  */
+#include <cstdio>
+
 #include "swift.h"
 #include "compat.h"
 
@@ -151,7 +153,7 @@ int ZeroState::Find(const Sha1Hash &root_hash)
 
     //std::string file_name = "content.avi";
     std::string file_name = contentdir_+FILE_SEP+root_hash.hex();
-    uint32_t chunk_size=8192;//SWIFT_DEFAULT_CHUNK_SIZE;
+    uint32_t chunk_size=SWIFT_DEFAULT_CHUNK_SIZE;
 
     dprintf("%s #0 zero find %s from %s\n",tintstr(),file_name.c_str(), getcwd_utf8().c_str() );
 
@@ -163,6 +165,10 @@ int ZeroState::Find(const Sha1Hash &root_hash)
     ret = file_exists_utf8(reqfilename);
     if (ret < 0 || ret == 0 || ret == 2)
         return -1;
+    FILE *f = fopen(reqfilename.c_str(), "r");
+    if (!f)
+        return -1;
+    fscanf(f, "version %*i\nroot hash %*s\nchunk size %u\n", &chunk_size);
     reqfilename = file_name+".mhash";
     ret = file_exists_utf8(reqfilename);
     if (ret < 0 || ret == 0 || ret == 2)
