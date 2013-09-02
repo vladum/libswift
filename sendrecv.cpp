@@ -595,7 +595,7 @@ bin_t        Channel::AddData (struct evbuffer *evb) {
     return tosend;
 }
 
-
+static tint data_in_time_old = 0;
 void    Channel::AddAck (struct evbuffer *evb) {
     if (data_in_==tintbin())
     //if (data_in_.bin==bin64_t::NONE)
@@ -613,6 +613,10 @@ void    Channel::AddAck (struct evbuffer *evb) {
     have_out_.set(data_in_.bin);
     dprintf("%s #%u +ack %s %lld\n",
         tintstr(),id_,data_in_.bin.str().c_str(),data_in_.time);
+    if (data_in_time_old < data_in_.time - 100) {
+        fprintf(stdout, "%s data_in_.time: %lld -> %lld\n", tintstr(), data_in_time_old, data_in_.time);
+    }
+    data_in_time_old = data_in_.time;
     if (data_in_.bin.layer()>2)
         data_in_dbl_ = data_in_.bin;
 
