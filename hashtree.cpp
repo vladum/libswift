@@ -525,15 +525,12 @@ bool            MmapHashTree::OfferHash (bin_t pos, const Sha1Hash& hash) {
     swift::Sha1Hash uphash;
     bin_t p;
 
-    daprintf(">>>>>>>> size: %llu", size_);
     if (!size_) { // only peak hashes are accepted at this point
-        daprintf(" AAAAAAAAAA offer peak\n");
         return OfferPeakHash(pos,hash);
     }
     if (hashes_ == NULL)
     {
         dprintf("%s hashtree never loaded correctly from disk\n",tintstr() );
-        daprintf(" XXXXXXXXXX\n");
         return false;
     }
 
@@ -542,27 +539,21 @@ bool            MmapHashTree::OfferHash (bin_t pos, const Sha1Hash& hash) {
     	return true;
 
     bin_t peak = peak_for(pos);
-    daprintf(" pos: %s peak: %s", pos.str().c_str(), peak.str().c_str());
     if (peak.is_none())
-        goto bugdebug;
-    if (peak==pos) {
-        daprintf("%s %s =============\n", hash.hex().c_str(), hashes_[pos.toUInt()].hex().c_str());
+        return false;
+    if (peak==pos)
         return hash == hashes_[pos.toUInt()];
-    }
-    if (!ack_out_.is_empty(pos.parent())) {
-        daprintf("%s %s =============\n", hash.hex().c_str(), hashes_[pos.toUInt()].hex().c_str());
+    if (!ack_out_.is_empty(pos.parent()))
         return hash==hashes_[pos.toUInt()]; // have this hash already, even accptd data
-    }
+
     // LESSHASH
     // Arno: if we already verified this hash against the root, don't replace
-    if (!is_hash_verified_.is_empty(bin_t(0,pos.toUInt()))) {
-        daprintf("%s %s =============\n", hash.hex().c_str(), hashes_[pos.toUInt()].hex().c_str());
+    if (!is_hash_verified_.is_empty(bin_t(0,pos.toUInt())))
         return hash == hashes_[pos.toUInt()];
-    }
 
     hashes_[pos.toUInt()] = hash;
     if (!pos.is_base())
-        goto bugdebug; // who cares?
+        return false; // who cares?
     p = pos;
     uphash = hash;
     // Arno: Note well: bin_t(0,p.toUInt()) is to abuse binmap as bitmap.
@@ -575,14 +566,11 @@ bool            MmapHashTree::OfferHash (bin_t pos, const Sha1Hash& hash) {
         // layer 0. Higher layers will never have 0 hashes
         // as SHA1(zero+zero) != zero (but b80de5...)
         //
-        if (hashes_[p.left().toUInt()] == Sha1Hash::ZERO || hashes_[p.right().toUInt()] == Sha1Hash::ZERO) {
-            daprintf(" ZERO hash on higher level ");
+        if (hashes_[p.left().toUInt()] == Sha1Hash::ZERO || hashes_[p.right().toUInt()] == Sha1Hash::ZERO)
             break;
-        }
         uphash = Sha1Hash(hashes_[p.left().toUInt()],hashes_[p.right().toUInt()]);
     }// walk to the nearest proven hash
 
-    daprintf(" %s %s \n", uphash.hex().c_str(), hashes_[p.toUInt()].hex().c_str());
     success = (uphash==hashes_[p.toUInt()]);
     // LESSHASH
     if (success) {
@@ -605,11 +593,7 @@ bool            MmapHashTree::OfferHash (bin_t pos, const Sha1Hash& hash) {
         }
     }
 
-    daprintf(" -------------- success: %d\n", success);
     return success;
-bugdebug:
-    daprintf(" <<<<<<<<<<<<<<<<<<\n");
-    return false;
 }
 
 
