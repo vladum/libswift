@@ -44,7 +44,7 @@ typedef unsigned __int64 uint64_t;
 #include <sys/stat.h>
 #endif
 
-#include <limits.h>
+#include <limits>
 #include <fcntl.h>
 #include <cstdio>
 #include <cstdlib>

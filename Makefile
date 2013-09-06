@@ -1,7 +1,7 @@
 LIBEVENT_HOME=/usr
 
 # Remove NDEBUG define to trigger asserts
-CPPFLAGS+=-O2 -I. -DNDEBUG -Wall -Wno-sign-compare -Wno-unused -g -I${LIBEVENT_HOME}/include -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
+CPPFLAGS+=-O2 -I. -DNDEBUG -Wall -Wno-format -Wno-sign-compare -Wno-unused -g -I${LIBEVENT_HOME}/include -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
 LDFLAGS+=-L${LIBEVENT_HOME} -levent -lstdc++
 
 all: swift-dynamic
