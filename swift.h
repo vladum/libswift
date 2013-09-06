@@ -382,6 +382,24 @@ namespace swift {
     typedef std::vector<int>		tdlist_t;
     class Storage;
 
+    /** A ReciprocityPolicy implements algorithms defined by the PPSPP standard,
+        section 9.2. This is the base class of such policies implemented as
+        external modules (see ./ext directory). A sender using a policy will
+        typically want to adjust the scheduled time of the next chunk
+        transmission after it has been computed by the fair/normal scheduling
+        mechanism (see Channel::Reschedule). A ReciprocityPolicy tracks
+        connected peers since the policy is usually based on these. */
+    class ReciprocityPolicy {
+    public:
+        virtual void AddPeer (const Address& addr, const Sha1Hash& root) {};
+        virtual void DelPeer (const Address& addr, const Sha1Hash& root) {};
+        virtual float AdjustNextSendTime(const Address& addr, const Sha1Hash& root, float normal_time) {
+            return normal_time;
+        };
+        virtual void ExternalCmd(char *message) {};
+        virtual ~ReciprocityPolicy() {};
+    };
+
     /** Superclass for live and vod */
     class ContentTransfer : public Operational {
 
@@ -805,6 +823,9 @@ namespace swift {
         static Channel* channel(int i) {
             return i<channels.size()?channels[i]:NULL;
         }
+        static ReciprocityPolicy* reciprocity_policy() {
+            return reciprocity_policy_;
+        } 
 
         // SAFECLOSE
         void        ClearEvents();
@@ -949,6 +970,7 @@ namespace swift {
         // and results in channel IDs with are not really random.
         //
         static channels_t channels;
+        static ReciprocityPolicy *reciprocity_policy_;
     };
 
 
