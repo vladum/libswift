@@ -1040,6 +1040,7 @@ namespace swift {
     Sha1Hash evbuffer_remove_hash(struct evbuffer* evb);
 
     const char* tintstr(tint t=0);
+    const char* tintstr_usecs(tint t=0);
     std::string sock2str (struct sockaddr_in addr);
  #define SWIFT_MAX_CONNECTIONS 20
 
