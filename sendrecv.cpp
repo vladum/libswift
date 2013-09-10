@@ -1313,7 +1313,9 @@ void Channel::Close () {
 
 
 void Channel::Reschedule () {
-	tint recip_send_interval = reciprocity_policy_->SendIntervalFor(this);
+    tint recip_send_interval = 0;
+    if (reciprocity_policy_->IsActive())
+	   recip_send_interval = reciprocity_policy_->SendIntervalFor(this);
 	
 	// Arno: CAREFUL: direct send depends on diff between next_send_time_ and
 	// NOW to be 0, so any calls to Time in between may put things off. Sigh.
@@ -1324,15 +1326,19 @@ void Channel::Reschedule () {
     	assert(next_send_time_<NOW+TINT_MIN);
         tint duein = next_send_time_-NOW;
 
-        // Vlad: Delay scheduling if reciprocity is activated.
     	if (recip_send_interval) {
     		duein = max(duein, last_send_time_ + recip_send_interval - NOW);
-    		printf("%s %s #%u recip spd:%02lf lim:%lf duein:%02li h_in:%llu\n",
-                   tintstr(), tintstr_usecs(), id_, 
-                   transfer().GetCurrentSpeed(DDIR_UPLOAD), 
-                   transfer().GetMaxSpeed(DDIR_UPLOAD), duein, hint_in_size_);
+    		dprintf("%s %s #%u recip spd:%02lf lim:%lf duein:%02li h_in:%llu\n",
+                    tintstr(), tintstr_usecs(), id_, 
+                    transfer().GetCurrentSpeed(DDIR_UPLOAD), 
+                    transfer().GetMaxSpeed(DDIR_UPLOAD), duein, hint_in_size_);
+            if (duein == TINT_NEVER) {
+                // SAFECLOSE
+                dprintf("%s #%u resched, will close (because reciprocity said "
+                        "so)\n", tintstr(), id_);
+                this->Schedule4Close();
+            }
     	}
-
 
         if (duein <= 0 && !direct_sending_ && next_send_time_<NOW) {
         	// Arno, 2011-10-18: libevent's timer implementation appears to be

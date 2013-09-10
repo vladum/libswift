@@ -41,18 +41,27 @@ FILE* Channel::debug_file = NULL;
 //PeerSelector* Channel::peer_selector = new SimpleSelector();
 tint Channel::MIN_PEX_REQUEST_INTERVAL = TINT_SEC;
 
-#ifdef RECIP_SELFISH
-    #include "ext/recip/selfish.cpp"
-    ReciprocityPolicy* Channel::reciprocity_policy_ = new SelfishReciprocityPolicy();
-#elif RECIP_PUNISH
-    #include "ext/recip/punish.cpp"
-    ReciprocityPolicy* Channel::reciprocity_policy_ = new PunishReciprocityPolicy();
-#elif RECIP_PUNISH_MORE
-    #include "ext/recip/punish_more.cpp"
-    ReciprocityPolicy* Channel::reciprocity_policy_ = new PunishMoreReciprocityPolicy();
+#ifdef RECIP
+    #include "ext/recip/recip.h"
+
+    #if RECIP_TYPE == 1
+        #pragma message ("Compiling with BASE reciprocity.")
+        ReciprocityPolicy* Channel::reciprocity_policy_ = 
+            new BaseReciprocityPolicy();
+    #elif RECIP_TYPE == 2
+        #pragma message ("Compiling with SELFISH reciprocity.")
+        ReciprocityPolicy* Channel::reciprocity_policy_ = 
+            new SelfishReciprocityPolicy();
+    #elif RECIP_TYPE == 3
+        #pragma message ("Compiling with WINNER reciprocity.")
+        ReciprocityPolicy* Channel::reciprocity_policy_ = 
+            new WinnerReciprocityPolicy();
+    #else
+        #error Reciprocity extention activated, but unknown type!
+    #endif
 #else
     ReciprocityPolicy* Channel::reciprocity_policy_ = new ReciprocityPolicy();
-#endif 
+#endif
 
 
 /*
@@ -90,7 +99,7 @@ Channel::Channel    (FileTransfer* transfer, int socket, Address peer_addr) :
     transfer_->hs_in_.push_back(bin_t(id_));
 
     // RECIPROCITY
-    reciprocity_policy_->AddPeer(peer_, transfer_->root_hash());
+    reciprocity_policy_->AddPeer(peer_);
 
     for(int i=0; i<4; i++) {
         owd_min_bins_[i] = TINT_NEVER;
@@ -113,16 +122,10 @@ Channel::~Channel () {
     channels[id_] = NULL;
     ClearEvents();
 
-    //RECIPROCITY
-    if (transfer_ != NULL) {
-        reciprocity_policy_->DelPeer(peer_, transfer_->root_hash());
-    } else {
-        // TODO(vladum): Will this ever happen?
-        // We no longer have the transfer_ object, thus the roothash. What to
-        // do, what to do? Remove from all swarms (for global recip. doesn't
-        // matter)?
-        reciprocity_policy_->DelPeer(peer_, Sha1Hash::ZERO);
-    }
+    // RECIPROCITY
+    // TODO(vladum): Maybe peer also has another Channel, in a another swarm.
+    // Different port?
+    reciprocity_policy_->DelPeer(peer_);
 
     // RATELIMIT
     if (transfer_ != NULL)
