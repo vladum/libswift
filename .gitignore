@@ -6,3 +6,4 @@
 *.so
 .sconsign.dblite
 swift
+swift-dynamic
