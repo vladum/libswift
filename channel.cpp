@@ -440,6 +440,20 @@ const char* swift::tintstr (tint time) {
     return ret_str[i];
 }
 
+const char* swift::tintstr_usecs (tint time) {
+    if (time==0)
+        time = now_t::now;
+    static char ret_str[4][32]; // wow
+    static int i;
+    i = (i+1) & 3;
+    if (time==TINT_NEVER)
+        return "NEVER";
+    //time -= Channel::epoch;
+    assert(time>=0);
+    unsigned long long usecs = time/TINT_uSEC;
+    sprintf(ret_str[i],"%llu",usecs);
+    return ret_str[i];
+}
 
 std::string swift::sock2str (struct sockaddr_in addr) {
     char ipch[32];
