@@ -950,7 +950,7 @@ void    Channel::OnHint (struct evbuffer *evb) {
     // Ric: update the hint_size
     hint_in_size_ += hint.base_length();
     char bin_name_buf[32];
-    dprintf("%s #%u -hint %s [%i]\n",tintstr(),id_,hint.str(bin_name_buf), hint_in_size_);
+    dprintf("%s #%u -hint %s [%llu]\n",tintstr(),id_,hint.str(bin_name_buf), hint_in_size_);
 }
 
 
