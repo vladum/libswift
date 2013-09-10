@@ -58,7 +58,7 @@ Channel::Channel    (FileTransfer* transfer, int socket, Address peer_addr) :
 	peer_(peer_addr), socket_(socket==INVALID_SOCKET?default_socket():socket), // FIXME
     transfer_(transfer), peer_channel_id_(0), own_id_mentioned_(false),
     data_in_(TINT_NEVER,bin_t::NONE), data_in_dbl_(bin_t::NONE),
-    data_out_cap_(bin_t::ALL),hint_out_size_(0),
+    data_out_cap_(bin_t::ALL),hint_in_size_(0),hint_out_size_(0),
     // Gertjan fix 996e21e8abfc7d88db3f3f8158f2a2c4fc8a8d3f
     // "Changed PEX rate limiting to per channel limiting"
     pex_requested_(false), pex_request_outstanding_(false), // Ric: init var that wasn't initialiazed
