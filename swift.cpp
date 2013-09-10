@@ -594,12 +594,12 @@ void ReportCallback(int fd, short event, void *arg) {
 
     if (report_progress && single_fd  < 0) {
         // Only for seeder.
-        fprintf(stderr,
-            "SEED %s %lli dgram %lli raw bytes up %lli bytes up, " \
-            "%lli dgram %lli raw bytes down %lli bytes down\n",
-            tintstr(),
-            Channel::global_dgrams_up, Channel::global_raw_bytes_up, Channel::global_bytes_up,
-            Channel::global_dgrams_down, Channel::global_raw_bytes_down, Channel::global_bytes_down );
+        // fprintf(stderr,
+        //     "SEED %s %lli dgram %lli raw bytes up %lli bytes up, " \
+        //     "%lli dgram %lli raw bytes down %lli bytes down\n",
+        //     tintstr(),
+        //     Channel::global_dgrams_up, Channel::global_raw_bytes_up, Channel::global_bytes_up,
+        //     Channel::global_dgrams_down, Channel::global_raw_bytes_down, Channel::global_bytes_down );
     }
 
 	if (single_fd  >= 0)

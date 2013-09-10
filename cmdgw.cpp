@@ -84,7 +84,7 @@ evutil_socket_t   cmd_tunnel_sock=INVALID_SOCKET;
 Address cmd_gw_httpaddr;
 std::string cmd_gw_metadir;
 
-bool cmd_gw_debug=true;
+bool cmd_gw_debug=false;
 
 tint cmd_gw_last_open=0;
 
