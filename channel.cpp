@@ -41,12 +41,18 @@ FILE* Channel::debug_file = NULL;
 //PeerSelector* Channel::peer_selector = new SimpleSelector();
 tint Channel::MIN_PEX_REQUEST_INTERVAL = TINT_SEC;
 
-#ifdef BC3RECIPROCITY
-#include "ext/bc3_reciprocity.cpp"
-ReciprocityPolicy* Channel::reciprocity_policy_ = new Bc3ReciprocityPolicy();
+#ifdef RECIP_SELFISH
+    #include "ext/recip/selfish.cpp"
+    ReciprocityPolicy* Channel::reciprocity_policy_ = new SelfishReciprocityPolicy();
+#elif RECIP_PUNISH
+    #include "ext/recip/punish.cpp"
+    ReciprocityPolicy* Channel::reciprocity_policy_ = new PunishReciprocityPolicy();
+#elif RECIP_PUNISH_MORE
+    #include "ext/recip/punish_more.cpp"
+    ReciprocityPolicy* Channel::reciprocity_policy_ = new PunishMoreReciprocityPolicy();
 #else
-ReciprocityPolicy* Channel::reciprocity_policy_ = new ReciprocityPolicy();
-#endif
+    ReciprocityPolicy* Channel::reciprocity_policy_ = new ReciprocityPolicy();
+#endif 
 
 
 /*
