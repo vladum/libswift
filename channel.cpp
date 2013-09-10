@@ -94,12 +94,13 @@ Channel::Channel    (FileTransfer* transfer, int socket, Address peer_addr) :
 {
     if (peer_==Address())
         peer_ = tracker;
+    else {
+        // RECIPROCITY
+        reciprocity_policy_->AddPeer(peer_);
+    }
     this->id_ = channels.size();
     channels.push_back(this);
     transfer_->hs_in_.push_back(bin_t(id_));
-
-    // RECIPROCITY
-    reciprocity_policy_->AddPeer(peer_);
 
     for(int i=0; i<4; i++) {
         owd_min_bins_[i] = TINT_NEVER;
