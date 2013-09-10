@@ -496,6 +496,9 @@ namespace swift {
     public:
         virtual void AddPeer (const Address& addr, const Sha1Hash& root) {};
         virtual void DelPeer (const Address& addr, const Sha1Hash& root) {};
+        virtual tint SendIntervalFor(Channel *channel) {
+            return 0;
+        }
         virtual float AdjustNextSendTime(const Address& addr,
                                          const Sha1Hash& root,
                                          float normal_time) {
@@ -620,6 +623,9 @@ namespace swift {
         	return tmo < 30*TINT_SEC ? tmo : 30*TINT_SEC;
         }
         uint32_t    id () const { return id_; }
+        uint64_t hint_in_size() { return hint_in_size_; }
+        send_control_t send_control() { return send_control_; }
+        static channels_t& get_channels() { return channels; }
         static ReciprocityPolicy* reciprocity_policy() {
             return reciprocity_policy_;
         }

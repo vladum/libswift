@@ -1313,46 +1313,8 @@ void Channel::Close () {
 
 
 void Channel::Reschedule () {
-
-	tint pktsRate = 0;
-
-	// RATELIMIT
-	if (transfer().GetCurrentSpeed(DDIR_UPLOAD) > transfer().GetMaxSpeed(DDIR_UPLOAD) && hint_in_size_ > 1) {
-
-		int peers = 0;
-		tint rate = transfer().GetMaxSpeed(DDIR_UPLOAD) / hashtree()->chunk_size();
-		uint64_t tot_req = 0;
-		std::vector<Channel *>::iterator iter;
-		for (iter = channels.begin()+1; iter != channels.end(); iter++)
-		{
-			Channel *c = *iter;
-			if (c != NULL)
-			{
-				// Ric: check why? :-|
-				if (c->send_control_==LEDBAT_CONTROL) {
-					tot_req += c->hint_in_size_;
-					peers++;
-					dprintf("%s #%u tot req from channel %i\t%i-%lu\n",tintstr(),id_, c->id_,tot_req,c->hint_in_size_);
-				}
-			}
-		}
-
-		float ratio = tot_req ? float(hint_in_size_)/float(tot_req) : 1.0;
-		dprintf("\t\t\t\t ratio: %f", ratio);
-		// deviate the ratio to an equal share
-
-		if (ratio!=1.0) {
-			// Ric: TODO work after fixing ledbat!
-			ratio += (1.0 / (peers) - ratio) * 1.0/(peers);
-			//ratio = 1.0/peers;
-		}
-		dprintf("=>%f\n",ratio);
-
-		pktsRate = TINT_SEC/(rate*ratio);
-		//transfer().OnSendNoData();
-
-	}
-
+	tint recip_send_interval = reciprocity_policy_->SendIntervalFor(this);
+	
 	// Arno: CAREFUL: direct send depends on diff between next_send_time_ and
 	// NOW to be 0, so any calls to Time in between may put things off. Sigh.
 	Time();
@@ -1362,9 +1324,13 @@ void Channel::Reschedule () {
     	assert(next_send_time_<NOW+TINT_MIN);
         tint duein = next_send_time_-NOW;
 
-    	if (pktsRate) {
-    		duein = max(duein, last_send_time_+pktsRate-NOW);
-    		dprintf("%s #%u Upload Limitation\tspeed:%02lf limit:%lf   duein:%02li hint_in:%i\n",tintstr(),id_,transfer().GetCurrentSpeed(DDIR_UPLOAD), transfer().GetMaxSpeed(DDIR_UPLOAD), duein,hint_in_size_);
+        // Vlad: Delay scheduling if reciprocity is activated.
+    	if (recip_send_interval) {
+    		duein = max(duein, last_send_time_ + recip_send_interval - NOW);
+    		printf("%s %s #%u recip spd:%02lf lim:%lf duein:%02li h_in:%llu\n",
+                   tintstr(), tintstr_usecs(), id_, 
+                   transfer().GetCurrentSpeed(DDIR_UPLOAD), 
+                   transfer().GetMaxSpeed(DDIR_UPLOAD), duein, hint_in_size_);
     	}
 
 
