@@ -253,7 +253,7 @@ void    Channel::AddHint (struct evbuffer *evb) {
 
 
 	// 1. Calc max of what we are allowed to request, uncongested bandwidth wise
-    tint plan_for = max(TINT_SEC,rtt_avg_*4);
+    tint plan_for = max(2*TINT_SEC,rtt_avg_*4);
 
     tint timed_out = NOW - plan_for*2;
     while ( !hint_out_.empty() && hint_out_.front().time < timed_out ) {
