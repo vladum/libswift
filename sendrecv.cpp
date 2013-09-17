@@ -1332,6 +1332,7 @@ void Channel::Reschedule () {
                     tintstr(), tintstr_usecs(), id_, 
                     transfer().GetCurrentSpeed(DDIR_UPLOAD), 
                     transfer().GetMaxSpeed(DDIR_UPLOAD), duein, hint_in_size_);
+            next_send_time_ = NOW + duein;
             if (duein == TINT_NEVER) {
                 // SAFECLOSE
                 dprintf("%s #%u resched, will close (because reciprocity said "
@@ -1375,6 +1376,10 @@ void Channel::LibeventSendCallback(int fd, short event, void *arg) {
 	// Called by libevent when it is the requested send time.
     Time();
     Channel * sender = (Channel*) arg;
+
+    // SCHEDAT, DUEAT, DUEIN, RUNAT, DIRECT?
+    fprintf(stdout, "SEND %s %s %s %s %d\n", "-", tintstr_usecs(sender->next_send_time_), "-" , tintstr_usecs(), sender->direct_sending_);
+
     if (NOW<sender->next_send_time_-TINT_MSEC)
         dprintf("%s #%u suspicious send %s<%s\n",tintstr(),
                 sender->id(),tintstr(NOW),tintstr(sender->next_send_time_));

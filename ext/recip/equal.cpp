@@ -13,7 +13,7 @@
 
 using namespace swift;
 
-tint SelfishReciprocityPolicy::SendIntervalFor(Channel *channel) {
+tint EqualReciprocityPolicy::SendIntervalFor(Channel *channel) {
     // No requests, nothing to do.
     if (channel->hint_in_size() == 0)
         return 0;
@@ -24,8 +24,6 @@ tint SelfishReciprocityPolicy::SendIntervalFor(Channel *channel) {
         channel->transfer().GetMaxSpeed(DDIR_UPLOAD))
         return 0;
 
-
-    float prios[] = {0.1, 0.2, 0.4, 0.8}, tot_prios = 0.0;
     int peers = 0;
     tint rate = channel->transfer().GetMaxSpeed(DDIR_UPLOAD) /
                 channel->hashtree()->chunk_size();
@@ -43,10 +41,9 @@ tint SelfishReciprocityPolicy::SendIntervalFor(Channel *channel) {
             if (c->send_control() == Channel::LEDBAT_CONTROL) {
                 tot_req += c->hint_in_size();
                 peers++;
-                tot_prios += prios[channel->id() - 1];
-                printf("%s #%u tot req from channel %u\t%llu-%llu\n",
-                       tintstr(), channel->id(), c->id(), tot_req, 
-                       c->hint_in_size());
+                // printf("%s #%u tot req from channel %u\t%llu-%llu\n",
+                //        tintstr(), channel->id(), c->id(), tot_req, 
+                //        c->hint_in_size());
             }
         }
     }
@@ -54,16 +51,14 @@ tint SelfishReciprocityPolicy::SendIntervalFor(Channel *channel) {
     // Simple P Controller.
     double feedback_ratio = 
         tot_req ? (double)channel->hint_in_size() / tot_req : 1.0;
-    double desired_ratio = 1.0;
-
-    // TODO(vladum): Do actual ranking.
-    if (channel->id() >= 1) {
-    	desired_ratio = prios[channel->id() - 1] / tot_prios;
-    }
+    double desired_ratio = 1.0 / peers;
     double error = (desired_ratio - feedback_ratio);
     double p_coef = 0.8;
     double ratio = feedback_ratio + error * p_coef;
-    printf("\t\tratio => %lf\n", ratio);
-    return TINT_SEC / (rate * ratio);
-}
+    //printf("\t\tdesired ratio: %f ratio: %lf\n", desired_ratio, ratio);
 
+    if (ratio == 0.0)
+        return TINT_NEVER;
+    else
+        return TINT_SEC / (rate * ratio);
+}

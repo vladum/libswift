@@ -49,10 +49,16 @@ private:
 };
 
 class SelfishReciprocityPolicy : public BaseReciprocityPolicy {
+  public:
+    virtual tint SendIntervalFor(Channel *channel);
 };
 
 class WinnerReciprocityPolicy : public BaseReciprocityPolicy {
-public:
-	virtual tint SendIntervalFor(Channel *channel);
+  public:
+    virtual tint SendIntervalFor(Channel *channel);
 };
 
+class EqualReciprocityPolicy : public BaseReciprocityPolicy {
+  public:
+    virtual tint SendIntervalFor(Channel *channel);
+};

@@ -56,6 +56,10 @@ tint Channel::MIN_PEX_REQUEST_INTERVAL = TINT_SEC;
         #pragma message ("Compiling with WINNER reciprocity.")
         ReciprocityPolicy* Channel::reciprocity_policy_ = 
             new WinnerReciprocityPolicy();
+    #elif RECIP_TYPE == 4
+        #pragma message ("Compiling with EQUAL reciprocity.")
+        ReciprocityPolicy* Channel::reciprocity_policy_ = 
+            new EqualReciprocityPolicy();
     #else
         #error Reciprocity extention activated, but unknown type!
     #endif
